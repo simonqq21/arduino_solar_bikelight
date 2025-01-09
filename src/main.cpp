@@ -57,6 +57,18 @@ void btn1_change_func() {
   btn1.changeInterruptFunc();
 }
 
+/**
+ * single click - switch and cycle through modes
+ */
+void btn1_1shortclick_func() {
+  // activateAutoSave();
+  curMode++;
+  // Serial.println(configuration->curBrightness > PWR_HIGH);
+  if (curMode > 4) curMode = 0;
+  Serial.print("curMode = ");
+  Serial.println(curMode);
+}
+
 void offMode() {
   lowLEDs.off();
   highLEDs.off();
@@ -79,26 +91,64 @@ void highMode() {
  * 
  */
 void flashingMode() {
-
+  // 1 Hz, single 30% DC flash
+  updatePeriodinMillis = 100;
+  keyPoints[0] = 0;
+  keyPoints[1] = keyPoints[0] + 300/updatePeriodinMillis;
+  keyPoints[2] = totalPeriodLengthinMillis/updatePeriodinMillis;
+  lowLEDs.on();
+  if (millis() - flashCycleTimer >= updatePeriodinMillis) {
+    flashCycleTimer = millis();
+    if (ctr1 < keyPoints[1]) {
+      highLEDs.set(true);
+    } else highLEDs.set(false);
+    ctr1 = ctr1 > keyPoints[2] - 1? 0:ctr1 + 1;
+  }
 }
 
+/**
+ * 
+ */
 void fadingMode() {
-
+  updatePeriodinMillis = 5;
+  keyPoints[0] = 0;
+  keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
+  keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
+  keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
+  // 1 Hz fade; 400 mS rise, 400 mS fall, 200 mS off
+  // 5 ms fading steps
+  // 200 total steps; 0,80,160,200
+  if (millis() - flashCycleTimer >= updatePeriodinMillis) {
+    flashCycleTimer = millis();
+    if (ctr1 < keyPoints[1]) {
+      highLEDs.aSet(sin(0.5 * PI * (ctr1-keyPoints[0]) / (keyPoints[1] - keyPoints[0]))*255);
+      // curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
+    } 
+    else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
+      highLEDs.aSet(sin(0.5 * PI * (1 + (ctr1-keyPoints[1]) / (keyPoints[2] - keyPoints[1])))*255);
+      // curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
+    } 
+    else if (ctr1 >= keyPoints[2]) {
+      highLEDs.aSet(0);
+    }
+    ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1 + 1;
+  }
 }
 
 void updateChargingLEDs() {
-
+  if (true || curMode != 0) {
+    chargingLEDs.on();
+  } else chargingLEDs.off();
 }
 
 void setup() {
   if (debug) Serial.begin(115200);
   btn1.begin(btn1_change_func);
-  btn1.set1ShortPressFunc();
+  btn1.set1ShortPressFunc(btn1_1shortclick_func);
   lowLEDs.begin();
   chargingLEDs.begin();
   highLEDs.begin();
   // LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, )
-  
 }
 
 void loop() {
@@ -107,6 +157,12 @@ void loop() {
   chargingLEDs.loop();
   highLEDs.loop();
 
-  
+  switch (curMode) {
+    case 1:
+
+      break;
+    default: 
+      break;
+  }
 }
 
