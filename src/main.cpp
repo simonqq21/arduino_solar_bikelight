@@ -50,7 +50,7 @@ unsigned long flashCycleTimer;
  * for flashing.
  */
 unsigned int ctr1;
-
+unsigned long lastTimePrinted = 0;
 bool debug = true;
 
 void btn1_change_func() {
@@ -71,7 +71,8 @@ void btn1_1shortclick_func() {
 
 void offMode() {
   lowLEDs.off();
-  highLEDs.off();
+  highLEDs.aSet(0);
+  // highLEDs.off();
 }
 
 void lowMode() {
@@ -110,6 +111,7 @@ void flashingMode() {
  * 
  */
 void fadingMode() {
+  lowLEDs.on();
   updatePeriodinMillis = 5;
   keyPoints[0] = 0;
   keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
@@ -122,10 +124,10 @@ void fadingMode() {
     flashCycleTimer = millis();
     if (ctr1 < keyPoints[1]) {
       highLEDs.aSet(sin(0.5 * PI * (ctr1-keyPoints[0]) / (keyPoints[1] - keyPoints[0]))*255);
-      // curBrightnessVal = sin8((ctr1-keyPoints[0])*64/(keyPoints[1] - keyPoints[0])) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-      highLEDs.aSet(sin(0.5 * PI * (1 + (ctr1-keyPoints[1]) / (keyPoints[2] - keyPoints[1])))*255);
+      // highLEDs.aSet(sin(0.5 * PI + 0.5 * PI * (ctr1-keyPoints[1]) / (keyPoints[2] - keyPoints[1]))*255);
+      highLEDs.aSet(sin(PI * (0.5 + 0.5 * (ctr1-keyPoints[1]) / (keyPoints[2] - keyPoints[1]))) * 255);
       // curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[2]) {
@@ -152,17 +154,38 @@ void setup() {
 }
 
 void loop() {
+  switch (curMode) {
+    case 1:
+      lowMode();
+      break;
+    case 2:
+      highMode();
+      break;
+    case 3:
+      flashingMode();
+      break;
+    case 4:
+      fadingMode();
+      break;
+    default: 
+      offMode();
+  }
+
   btn1.loop();
   lowLEDs.loop();
   chargingLEDs.loop();
   highLEDs.loop();
 
-  switch (curMode) {
-    case 1:
+  chargingPinADCVal = analogRead(chargingPin);
+  if (chargingPinADCVal > 1023*3/4 || curMode > 0) {
+    chargingLEDs.on();
+  } else {
+    chargingLEDs.off();
+  }
 
-      break;
-    default: 
-      break;
+  if (millis() - lastTimePrinted > 200) {
+    lastTimePrinted = millis();
+    Serial.println(analogRead(chargingPin));
   }
 }
 
