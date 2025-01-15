@@ -3,6 +3,7 @@
 #include "buttonlib2.h"
 #include "LED.h"
 #include <avr/sleep.h>  
+#include <avr/wdt.h> 
 
 /**
  * low LEDs - 7 dim red LEDs 
@@ -70,6 +71,8 @@ void btn1_1shortclick_func() {
     Serial.print("curMode = ");
     Serial.println(curMode);
   }
+  wdt_reset();
+  
 }
 
 // ISRs
@@ -78,18 +81,32 @@ void btn1_change_func() {
 }
 
 void wakeupISR() {
-  startSleepTimer();
+  startSleepTimer(); 
+  curMode = 1;
+  btn1.reset();
+}
+
+ISR (WDT_vect) {
+  chargingPinADCVal = analogRead(chargingPin);
+  if (chargingPinADCVal > 1023*3/4 || curMode > 0) {
+    chargingLEDs.on();
+  } else {
+    chargingLEDs.off();
+  }
 }
 
 void offMode() {
   lowLEDs.off();
   highLEDs.aSet(0);
   // highLEDs.off();
-  if (millis() - powerOnTime > 1000) {
-    
-    
-    // delay(100);
-    // LowPower.powerDown(SLEEP_1S, ADC_OFF, BOD_OFF);  
+  if (millis() - powerOnTime > 300) {
+    // clear MCUSR
+    MCUSR = 0;
+    WDTCSR = bit (WDCE) | bit (WDE);
+    WDTCSR = (bit (WDIE) | bit (WDP2) | bit (WDP1) | bit (WDP0));
+    // WDTCSR = bit (WDCE);
+    // WDTCSR &= ~bit (WDE);
+
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     sleep_enable();
     detachInterrupt(digitalPinToInterrupt(2));
@@ -102,7 +119,6 @@ void offMode() {
     sei();
     detachInterrupt(digitalPinToInterrupt(2));
     btn1.begin(btn1_change_func);
-    curMode = 1;
     Serial.println("WAKE");
   }
 }
@@ -219,7 +235,7 @@ void loop() {
 
   if (millis() - lastTimePrinted > 200) {
     lastTimePrinted = millis();
-    Serial.println(analogRead(chargingPin));
+    // Serial.println(analogRead(chargingPin));
   }
 }
 

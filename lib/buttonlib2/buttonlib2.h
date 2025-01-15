@@ -23,6 +23,7 @@ class InterruptButton {
         void set1LongPressFunc(void (*func)() = NULL);
         void set2LongPressFunc(void (*func)() = NULL);
         void set3LongPressFunc(void (*func)() = NULL);
+        void reset();
         void loop();
     private:
         int _pin;
