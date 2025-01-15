@@ -38,7 +38,7 @@ void InterruptButton::set3LongPressFunc(void (*func)()) {
 }
 
 void InterruptButton::reset() {
-    _lastClickTime = 0;
+    _lastClickTime = millis();
 }
 
 void InterruptButton::loop() {
