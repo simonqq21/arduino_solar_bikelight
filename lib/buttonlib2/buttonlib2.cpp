@@ -6,12 +6,7 @@ InterruptButton::InterruptButton(int pin) {
 
 void InterruptButton::changeInterruptFunc() {
     _changed = true;
-    _lastDebounceTime = millis();
 }
-
-// void InterruptButton::setChangeInterruptFunc(void (*changeInterruptFunc)()) {
-//     attachInterrupt(digitalPinToInterrupt(_pin), changeInterruptFunc, CHANGE);
-// }
 
 void InterruptButton::begin(void (*changeInterruptFunc)()) {
     pinMode(_pin, INPUT_PULLUP);
@@ -43,7 +38,12 @@ void InterruptButton::set3LongPressFunc(void (*func)()) {
 }
 
 void InterruptButton::loop() {
-    if (_changed && millis() - _lastDebounceTime > DEBOUNCE_DELAY) {
+    if (_changed) {
+        _lastDebounceTime = millis();
+        _changed = false;
+        _dbTimerStarted = true;
+    }
+    if (_dbTimerStarted && millis() - _lastDebounceTime > DEBOUNCE_DELAY) {
         _curState = digitalRead(_pin);
         /**
          * when pressed, increment the btn click count if within the multiclick delay.
@@ -51,60 +51,63 @@ void InterruptButton::loop() {
         if (!_curState) {
             // Serial.print("btn pressed ");
             _lastClickTime = millis();
-            _numClicks++;
+            // _numClicks++;
+            if (_1ShortPressFunc != NULL) {
+                _1ShortPressFunc();
+            } 
         }
         // else Serial.print("btn released ");
-        _changed = false;
+        _dbTimerStarted = false;
     }
 
-    if (_numClicks) {
-        if (millis() - _lastClickTime > MULTICLICK_DURATION) {
-            if (digitalRead(_pin)) {
-                // Serial.print("button clicked ");
-                // Serial.print(_numClicks);
-                // Serial.println(" times.");
-                switch (_numClicks) {
-                    case 1: 
-                        if (_1ShortPressFunc != NULL) {
-                            _1ShortPressFunc();
-                            break;
-                        }             
-                    case 2: 
-                    if (_2ShortPressFunc != NULL) {
-                        _2ShortPressFunc();
-                        break;
-                    }
-                    default: 
-                    if (_3ShortPressFunc != NULL) {
-                        _3ShortPressFunc();
-                    }
-                }
-                _numClicks = 0; 
-            }
-        }
-        if (millis() - _lastClickTime > LONGCLICK_DURATION) {
-            if (!digitalRead(_pin)) {
-                // Serial.print("button long clicked ");
-                // Serial.print(_numClicks);
-                // Serial.println(" times.");
-                switch (_numClicks) {
-                    case 1: 
-                        if (_1LongPressFunc != NULL) {
-                            _1LongPressFunc();
-                            break;
-                        }
-                    case 2: 
-                        if (_2LongPressFunc != NULL) {
-                            _2LongPressFunc();
-                            break;   
-                        }
-                    default: 
-                        if (_3LongPressFunc != NULL) {
-                            _3LongPressFunc();
-                        }
-                }
-                _numClicks = 0; 
-            }
-        }
-    }
+    // if (_numClicks) {
+    //     if (millis() - _lastClickTime > MULTICLICK_DURATION) {
+    //         if (digitalRead(_pin)) {
+    //             // Serial.print("button clicked ");
+    //             // Serial.print(_numClicks);
+    //             // Serial.println(" times.");
+    //             switch (_numClicks) {
+    //                 case 1: 
+    //                     if (_1ShortPressFunc != NULL) {
+    //                         _1ShortPressFunc();
+    //                         break;
+    //                     }             
+    //                 case 2: 
+    //                 if (_2ShortPressFunc != NULL) {
+    //                     _2ShortPressFunc();
+    //                     break;
+    //                 }
+    //                 default: 
+    //                 if (_3ShortPressFunc != NULL) {
+    //                     _3ShortPressFunc();
+    //                 }
+    //             }
+    //             _numClicks = 0; 
+    //         }
+    //     }
+    //     if (millis() - _lastClickTime > LONGCLICK_DURATION) {
+    //         if (!digitalRead(_pin)) {
+    //             // Serial.print("button long clicked ");
+    //             // Serial.print(_numClicks);
+    //             // Serial.println(" times.");
+    //             switch (_numClicks) {
+    //                 case 1: 
+    //                     if (_1LongPressFunc != NULL) {
+    //                         _1LongPressFunc();
+    //                         break;
+    //                     }
+    //                 case 2: 
+    //                     if (_2LongPressFunc != NULL) {
+    //                         _2LongPressFunc();
+    //                         break;   
+    //                     }
+    //                 default: 
+    //                     if (_3LongPressFunc != NULL) {
+    //                         _3LongPressFunc();
+    //                     }
+    //             }
+    //             _numClicks = 0; 
+    //         }
+    //     }
+    // }
 }

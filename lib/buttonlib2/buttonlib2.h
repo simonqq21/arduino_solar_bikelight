@@ -2,7 +2,7 @@
 #define INTERRUPT_BUTTON_H
 #include <Arduino.h>
 
-#define DEBOUNCE_DELAY 20
+#define DEBOUNCE_DELAY 80
 #define MULTICLICK_DURATION 500
 #define LONGCLICK_DURATION 1000
 /**
@@ -27,9 +27,10 @@ class InterruptButton {
     private:
         int _pin;
         bool _curState;
-        bool _changed;
+        volatile bool _changed;
         unsigned long _lastDebounceTime;
         unsigned long _lastClickTime;
+        bool _dbTimerStarted;
         int _numClicks;
         void (*_1ShortPressFunc)();
         void (*_2ShortPressFunc)();
