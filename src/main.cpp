@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include "LowPower.h"
 #include "math.h"
 #include "buttonlib2.h"
 #include "LED.h"
@@ -96,8 +95,11 @@ void offMode() {
     detachInterrupt(digitalPinToInterrupt(2));
     attachInterrupt(digitalPinToInterrupt(2), wakeupISR, LOW);  
     Serial.println("SLEEP");
-    sleep_mode(); 
-    sleep_disable(); 
+    // sleep_mode(); 
+    sei();
+    sleep_cpu();
+    sleep_disable();
+    sei();
     detachInterrupt(digitalPinToInterrupt(2));
     btn1.begin(btn1_change_func);
     curMode = 1;
