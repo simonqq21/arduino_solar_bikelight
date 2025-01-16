@@ -71,22 +71,29 @@ void btn1_1shortclick_func() {
     Serial.print("curMode = ");
     Serial.println(curMode);
   }
+  // reset watchdog timer
   wdt_reset();
-  
 }
 
-// ISRs
+// ISR for interrupt button library 
 void btn1_change_func() {
   btn1.changeInterruptFunc();
 }
 
+// ISR for waking up from deep sleep
 void wakeupISR() {
   startSleepTimer(); 
   curMode = 1;
+  // reset button temporarily to prevent double trigger
   btn1.reset();
 }
 
-ISR (WDT_vect) {
+/**
+ * When the bike light is in Off Mode, 
+ *  if the battery is charging, turn on the charging LED, 
+ *  else turn off the charging LED. 
+ */
+void updateChargeLED() {
   chargingPinADCVal = analogRead(chargingPin);
   if (chargingPinADCVal > 1023*3/4 || curMode > 0) {
     chargingLEDs.on();
@@ -95,23 +102,36 @@ ISR (WDT_vect) {
   }
 }
 
+// ISR triggered by watchdog timer every 4 seconds during deep sleep,
+// before going back to sleep.
+ISR (WDT_vect) {
+  Serial.println("I");
+  wdt_reset();
+  updateChargeLED();
+}
+
+/**
+ * mode 0 - Off Mode
+ */
 void offMode() {
   lowLEDs.off();
   highLEDs.aSet(0);
   // highLEDs.off();
   if (millis() - powerOnTime > 300) {
-    // clear MCUSR
+    // set interrupt to perform the watchdog ISR every four seconds then go back to sleep
+    // clear MCU Status Register
     MCUSR = 0;
+    // set watchdog timer change enable and watchdog enable
     WDTCSR = bit (WDCE) | bit (WDE);
-    WDTCSR = (bit (WDIE) | bit (WDP2) | bit (WDP1) | bit (WDP0));
-    // WDTCSR = bit (WDCE);
-    // WDTCSR &= ~bit (WDE);
+    // set WDP3 to WDP0 to trigger watchdog interrupt every 4 seconds and 
+    // set WDIE enable watchdog interrupt
+    WDTCSR = bit(WDIE) | bit (WDP3) & ~bit (WDP2) & ~bit (WDP1) & ~bit (WDP0);
 
+    // sleep CPU until woken up by the button
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     sleep_enable();
     detachInterrupt(digitalPinToInterrupt(2));
     attachInterrupt(digitalPinToInterrupt(2), wakeupISR, LOW);  
-    Serial.println("SLEEP");
     // sleep_mode(); 
     sei();
     sleep_cpu();
@@ -119,17 +139,21 @@ void offMode() {
     sei();
     detachInterrupt(digitalPinToInterrupt(2));
     btn1.begin(btn1_change_func);
-    Serial.println("WAKE");
   }
 }
 
+/**
+ * mode 1 - Low Mode 
+ * dim LEDs on, charging LED on, bright LEDs off
+ */
 void lowMode() {
   lowLEDs.on();
   highLEDs.off();
 }
 
 /**
- * 
+ * mode 1 - Low Mode 
+ * dim LEDs on, charging LED on, bright LEDs on
  */
 void highMode() {
   lowLEDs.on();
@@ -137,7 +161,8 @@ void highMode() {
 }
 
 /**
- * 
+ * mode 1 - Low Mode 
+ * dim LEDs on, charging LED on, bright LEDs flashing
  */
 void flashingMode() {
   // 1 Hz, single 30% DC flash
@@ -156,7 +181,8 @@ void flashingMode() {
 }
 
 /**
- * 
+ * mode 1 - Low Mode 
+ * dim LEDs on, charging LED on, bright LEDs fading
  */
 void fadingMode() {
   lowLEDs.on();
@@ -174,9 +200,7 @@ void fadingMode() {
       highLEDs.aSet(sin(0.5 * PI * (ctr1-keyPoints[0]) / (keyPoints[1] - keyPoints[0]))*255);
     } 
     else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
-      // highLEDs.aSet(sin(0.5 * PI + 0.5 * PI * (ctr1-keyPoints[1]) / (keyPoints[2] - keyPoints[1]))*255);
       highLEDs.aSet(sin(PI * (0.5 + 0.5 * (ctr1-keyPoints[1]) / (keyPoints[2] - keyPoints[1]))) * 255);
-      // curBrightnessVal = sin8((ctr1-keyPoints[1])*64/(keyPoints[2] - keyPoints[1])+64) * BRIGHTNESS_VALUES[configuration->curBrightness] / 255;
     } 
     else if (ctr1 >= keyPoints[2]) {
       highLEDs.aSet(0);
@@ -185,15 +209,9 @@ void fadingMode() {
   }
 }
 
-void updateChargingLEDs() {
-  if (true || curMode != 0) {
-    chargingLEDs.on();
-  } else chargingLEDs.off();
-}
-
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
-  
+  wdt_reset();
+  wdt_disable();
   if (debug) Serial.begin(115200);
   Serial.println("start");
   btn1.begin(btn1_change_func);
@@ -204,6 +222,11 @@ void setup() {
 }
 
 void loop() {
+  btn1.loop();
+  lowLEDs.loop();
+  chargingLEDs.loop();
+  highLEDs.loop();
+  
   switch (curMode) {
     case 1:
       lowMode();
@@ -221,22 +244,12 @@ void loop() {
       offMode();
   }
 
-  btn1.loop();
-  lowLEDs.loop();
-  chargingLEDs.loop();
-  highLEDs.loop();
+  updateChargeLED();
 
-  chargingPinADCVal = analogRead(chargingPin);
-  if (chargingPinADCVal > 1023*3/4 || curMode > 0) {
-    chargingLEDs.on();
-  } else {
-    chargingLEDs.off();
-  }
-
-  if (millis() - lastTimePrinted > 200) {
-    lastTimePrinted = millis();
-    // Serial.println(analogRead(chargingPin));
-  }
+  // if (millis() - lastTimePrinted > 200) {
+  //   lastTimePrinted = millis();
+  //   // Serial.println(analogRead(chargingPin));
+  // }
 }
 
 // // **** INCLUDES *****
