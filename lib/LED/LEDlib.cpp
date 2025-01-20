@@ -1,5 +1,5 @@
 #include "Arduino.h"
-#include "LED.h" 
+#include "LEDlib.h" 
 
 LED::LED(int pin) {
     _pin = pin;

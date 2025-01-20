@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "math.h"
 #include "buttonlib2.h"
-#include "LED.h"
+#include "LEDlib.h"
 #include <avr/sleep.h>  
 #include <avr/wdt.h> 
 
@@ -83,6 +83,7 @@ void btn1_change_func() {
 // ISR for waking up from deep sleep
 void wakeupISR() {
   startSleepTimer(); 
+  btn1.begin(btn1_change_func);
   curMode = 1;
   // reset button temporarily to prevent double trigger
   btn1.reset();
@@ -105,7 +106,6 @@ void updateChargeLED() {
 // ISR triggered by watchdog timer every 4 seconds during deep sleep,
 // before going back to sleep.
 ISR (WDT_vect) {
-  Serial.println("I");
   wdt_reset();
   updateChargeLED();
 }
@@ -133,12 +133,12 @@ void offMode() {
     detachInterrupt(digitalPinToInterrupt(2));
     attachInterrupt(digitalPinToInterrupt(2), wakeupISR, LOW);  
     // sleep_mode(); 
-    sei();
+    // sei();
     sleep_cpu();
-    sleep_disable();
-    sei();
-    detachInterrupt(digitalPinToInterrupt(2));
-    btn1.begin(btn1_change_func);
+    // sleep_disable();
+    // sei();
+    // detachInterrupt(digitalPinToInterrupt(2));
+    // btn1.begin(btn1_change_func);
   }
 }
 

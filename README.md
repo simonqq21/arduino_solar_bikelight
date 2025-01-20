@@ -15,11 +15,11 @@
 - Momentary pushbutton 
 
 ## Things to calculate/ measure: 
-- solar panel no-load voltage 
-- solar panel max current
-- expected battery charge time 
-- expected runtime 
-- voltage divider resistances 
+solar panel no-load voltage 
+solar panel max current
+expected battery charge time 
+expected runtime 
+voltage divider resistances 
 
 assume 6V max voltage input, 5V max voltage output 
 6 * r2 / (r1 + r2) = 5 
@@ -29,21 +29,21 @@ r2 = 5 * r1
 The current through the voltage divider must be minimal. 
 if r2 is 50k, r1 is 10k.
 
-- LED current limiting resistors 
-    - diffused LED 
+LED current limiting resistors 
+diffused LED 
 
 Li-ion voltage max 4.2V 
 LED current = 20mA
 (4.2-2.1)/0.02 = 105 R resistor minimum
 
-    - clear LED
+clear LED
 
 Li-ion voltage max 4.2V 
 LED current = 30mA
 (4.2-2.1)/0.03 = 70 R resistor minimum
 
-- power consumption 
-    - power consumption in Off Mode (quiescent current)
-    - power consumption in Low Mode 
-    - power consumption in High Mode 
+power consumption 
+power consumption in Off Mode (quiescent current)
+power consumption in Low Mode 
+power consumption in High Mode 
 - 
