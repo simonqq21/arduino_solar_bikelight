@@ -17,6 +17,7 @@ int lowLEDsPin = 4;
 int chargingLEDsPin = 5;
 int highLEDsPin = 6;
 int chargingPin = A0;
+int batPin = A1;
 LED lowLEDs(lowLEDsPin);
 LED chargingLEDs(chargingLEDsPin);
 LED highLEDs(highLEDsPin);
@@ -24,12 +25,12 @@ LED highLEDs(highLEDsPin);
 /**
  * Modes: 
  * 0 - off - all LEDs off
- * 1 - low - low LEDs on, charging LEDs on, high LEDs off
- * 2 - high - low LEDs on, charging LEDs on, high LEDs on
- * 3 - flashing - low LEDs on, charging LEDs on, high LEDs flashing
- * 4 - fading - low LEDs on, charging LEDs on, high LEDs fading
- * 5 - charging(either via USB port or solar panel) - low LEDs off, charging LEDs on, high LEDs off
- * 
+ * 1 - extended low - low LEDs off, charging LEDs on, high LEDs flashing
+ * 2 - low - low LEDs on, charging LEDs on, high LEDs off
+ * 3 - high - low LEDs on, charging LEDs on, high LEDs on
+ * 4 - flashing - low LEDs on, charging LEDs on, high LEDs flashing
+ * 5 - fading - low LEDs on, charging LEDs on, high LEDs fading
+ * 6 - charging(either via USB port or solar panel) - low LEDs off, charging LEDs on, high LEDs off
  * charging LED is off when (not charging and off), and on when (the low LEDs are on or when charging)
  */
 int curMode = 0;
@@ -66,7 +67,7 @@ void btn1_1shortclick_func() {
   startSleepTimer();
   curMode++;
   // Serial.println(configuration->curBrightness > PWR_HIGH);
-  if (curMode > 4) curMode = 0;
+  if (curMode > 5) curMode = 0;
   if (debug) {
     Serial.print("curMode = ");
     Serial.println(curMode);
@@ -101,6 +102,10 @@ void updateChargeLED() {
   } else {
     chargingLEDs.off();
   }
+}
+
+void checkBatVolts() {
+  
 }
 
 // ISR triggered by watchdog timer every 4 seconds during deep sleep,
@@ -140,6 +145,13 @@ void offMode() {
     // detachInterrupt(digitalPinToInterrupt(2));
     // btn1.begin(btn1_change_func);
   }
+}
+
+/**
+ * 
+ */
+void extendedLowMode() {
+
 }
 
 /**
@@ -350,3 +362,24 @@ void loop() {
 //   sleepNow();     // sleep function called here 
 //   Serial.println("ABC");
 // }
+
+
+
+// #include <avr/sleep.h>
+// #include <avr/power.h>
+// #include <Arduino.h> 
+
+// void setup () 
+// {
+//   set_sleep_mode (SLEEP_MODE_PWR_DOWN);  
+//   noInterrupts ();           // timed sequence follows
+//   sleep_enable();
+ 
+//   // turn off brown-out enable in software
+//   MCUCR = bit (BODS) | bit (BODSE);  // turn on brown-out enable select
+//   MCUCR = bit (BODS);        // this must be done within 4 clock cycles of above
+//   interrupts ();             // guarantees next instruction executed
+//   sleep_cpu ();              // sleep within 3 clock cycles of above
+// }  // end of setup
+
+// void loop () { }
