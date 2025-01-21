@@ -35,7 +35,7 @@ LED highLEDs(highLEDsPin);
  */
 int curMode = 0;
 double chargingPinVolts, batVolts;
-
+bool lowBattery;
 
 // update period for fading modes
 unsigned int updatePeriodinMillis = 5;
@@ -67,7 +67,9 @@ void startSleepTimer() {
 void btn1_1shortclick_func() {
   startSleepTimer();
   curMode++;
-  // Serial.println(configuration->curBrightness > PWR_HIGH);
+  if (lowBattery && curMode > 1) {
+    curMode = 0;
+  }
   if (curMode > 5) curMode = 0;
   if (debug) {
     Serial.print("curMode = ");
@@ -113,7 +115,11 @@ void checkBatVolts() {
   } 
   // turn on the light in extended low mode if battery is low and the light is turned on 
   else if (batVolts >= 3.2 && batVolts <= 3.7 && curMode > 0) {
+    lowBattery = true;
     curMode = 1;
+  } 
+  else {
+    lowBattery = false;
   }
 }
 
@@ -285,7 +291,7 @@ void loop() {
 
   updateChargeLED();
   checkBatVolts(); 
-  
+
   if (millis() - lastTimePrinted > 1000) {
     lastTimePrinted = millis();
     Serial.print(analogRead(chargingPin));
