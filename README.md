@@ -4,8 +4,10 @@
 - 6V 1W solar panel 
 - TP4056 li-ion charger with BMS chip 
 - 18650 battery holder with 18650 battery x1  
-- 10k resistor (solar panel voltage divider)
-- 50k resistor (solar panel voltage divider) 
+- 10k resistor (charging input voltage divider)
+- 50k resistor (charging input voltage divider) 
+- 10k resistor (battery voltage divider)
+- 50k resistor (battery panel voltage divider) 
 - Diffused red LED x5 (dim light, one as a charging indicator when turned off)
 - 150R resistor x5
 - Clear red LED x4 (bright light) 
@@ -68,6 +70,31 @@ Vout = 1.1V
 r1 = 3.1r2 / 1.1 
 r2 = 10k  
 r1 = 28181.818 ~= 28k 
+
+Battery voltage divider 
+r1 = 50k 
+r2 = 10k 
+input voltage min: 3.0V
+input voltage max: 4.2V
+conversion factor = 10k/(50k+10k) = 1/6 
+3.0V*1/6 = 0.5V 
+4.2V*1/6 = 0.7V
+0.5/1.1*1023=465 
+0.7/1.1*1023=651
+
+Charging input voltage divider 
+r1 = 50k 
+r2 = 10k 
+input voltage min: 0.0V
+input voltage max: 7.0V
+input voltage threshold: 4.8V 
+conversion factor = 10k/(50k+10k) = 1/6 
+0.0V*1/6 = 0V 
+7.0V*1/6 = 1.167V
+4.8V*1/6 = 0.8V  
+1.167/1.1*1023=1023 (capped at 1023, but it doesn't matter anyways)
+0.8/1.1*1023=744
+
 
 # Power Consumption 
 power consumption in Off Mode (quiescent current) 35uA

@@ -34,7 +34,8 @@ LED highLEDs(highLEDsPin);
  * charging LED is off when (not charging and off), and on when (the low LEDs are on or when charging)
  */
 int curMode = 0;
-int chargingPinADCVal;
+double chargingPinVolts, batVolts;
+
 
 // update period for fading modes
 unsigned int updatePeriodinMillis = 5;
@@ -96,8 +97,8 @@ void wakeupISR() {
  *  else turn off the charging LED. 
  */
 void updateChargeLED() {
-  chargingPinADCVal = analogRead(chargingPin);
-  if (chargingPinADCVal > 1023*3/4 || curMode > 0) {
+  chargingPinVolts = analogRead(chargingPin)*1.1/1023.0*6;
+  if (chargingPinVolts > 4.8 || curMode > 0) {
     chargingLEDs.on();
   } else {
     chargingLEDs.off();
@@ -105,7 +106,15 @@ void updateChargeLED() {
 }
 
 void checkBatVolts() {
-  
+  batVolts = analogRead(batPin)*1.1/1023.0*6;
+  // turn off the light if the battery voltage is waaay too low
+  if (batVolts <= 3.2) {
+    curMode = 0;
+  } 
+  // turn on the light in extended low mode if battery is low and the light is turned on 
+  else if (batVolts >= 3.2 && batVolts <= 3.7 && curMode > 0) {
+    curMode = 1;
+  }
 }
 
 // ISR triggered by watchdog timer every 4 seconds during deep sleep,
@@ -113,6 +122,7 @@ void checkBatVolts() {
 ISR (WDT_vect) {
   wdt_reset();
   updateChargeLED();
+  checkBatVolts();
 }
 
 /**
@@ -130,7 +140,8 @@ void offMode() {
     WDTCSR = bit (WDCE) | bit (WDE);
     // set WDP3 to WDP0 to trigger watchdog interrupt every 4 seconds and 
     // set WDIE enable watchdog interrupt
-    WDTCSR = bit(WDIE) | bit (WDP3) & ~bit (WDP2) & ~bit (WDP1) & ~bit (WDP0);
+    // WDTCSR = bit(WDIE) | 1 << WDP3 & ~bit (WDP2) & ~bit (WDP1) & ~bit (WDP0);
+    WDTCSR = bit(WDIE) | 0 << WDP3 | 1 << WDP2 | 1 << WDP1 | 0 << WDP0;
 
     // sleep CPU until woken up by the button
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -148,14 +159,26 @@ void offMode() {
 }
 
 /**
- * 
+ * mode 1 - Extended Low Mode 
+ * dim LEDs flashing, charging LED on, bright LEDs off
  */
 void extendedLowMode() {
-
+  // 1 Hz, single 30% DC flash
+  updatePeriodinMillis = 100;
+  keyPoints[0] = 0;
+  keyPoints[1] = keyPoints[0] + 300/updatePeriodinMillis;
+  keyPoints[2] = totalPeriodLengthinMillis/updatePeriodinMillis;
+  if (millis() - flashCycleTimer >= updatePeriodinMillis) {
+    flashCycleTimer = millis();
+    if (ctr1 < keyPoints[1]) {
+      lowLEDs.set(true);
+    } else lowLEDs.set(false);
+    ctr1 = ctr1 > keyPoints[2] - 1? 0:ctr1 + 1;
+  }
 }
 
 /**
- * mode 1 - Low Mode 
+ * mode 2 - Low Mode 
  * dim LEDs on, charging LED on, bright LEDs off
  */
 void lowMode() {
@@ -164,7 +187,7 @@ void lowMode() {
 }
 
 /**
- * mode 1 - Low Mode 
+ * mode 3 - High Mode 
  * dim LEDs on, charging LED on, bright LEDs on
  */
 void highMode() {
@@ -173,7 +196,7 @@ void highMode() {
 }
 
 /**
- * mode 1 - Low Mode 
+ * mode 4 - Flashing Mode 
  * dim LEDs on, charging LED on, bright LEDs flashing
  */
 void flashingMode() {
@@ -193,7 +216,7 @@ void flashingMode() {
 }
 
 /**
- * mode 1 - Low Mode 
+ * mode 5 - Fading Mode 
  * dim LEDs on, charging LED on, bright LEDs fading
  */
 void fadingMode() {
@@ -231,6 +254,7 @@ void setup() {
   lowLEDs.begin();
   chargingLEDs.begin();
   highLEDs.begin();
+  analogReference(INTERNAL);
 }
 
 void loop() {
@@ -241,15 +265,18 @@ void loop() {
   
   switch (curMode) {
     case 1:
-      lowMode();
+      extendedLowMode();
       break;
     case 2:
-      highMode();
+      lowMode();
       break;
     case 3:
-      flashingMode();
+      highMode();
       break;
     case 4:
+      flashingMode();
+      break;
+    case 5:
       fadingMode();
       break;
     default: 
@@ -257,11 +284,15 @@ void loop() {
   }
 
   updateChargeLED();
-
-  // if (millis() - lastTimePrinted > 200) {
-  //   lastTimePrinted = millis();
-  //   // Serial.println(analogRead(chargingPin));
-  // }
+  checkBatVolts(); 
+  
+  if (millis() - lastTimePrinted > 1000) {
+    lastTimePrinted = millis();
+    Serial.print(analogRead(chargingPin));
+    Serial.print(", ");
+    Serial.print(analogRead(batPin));
+    Serial.println();
+  }
 }
 
 // // **** INCLUDES *****
