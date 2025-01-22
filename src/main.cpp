@@ -47,6 +47,10 @@ unsigned int keyPoints[4];
 unsigned long flashCycleTimer;
 unsigned long powerOnTime; 
 
+const double chargingThresholdVolts = 4.0;
+const double deadBatVolts = 3.2;
+const double lowBatVolts = 3.7;
+
 /**
  * ctr1 is a counter variable used to animate the LEDs.
  * ctr1 is measured in multiples of updatePeriodinMillis milliseconds, which varies 
@@ -66,11 +70,13 @@ void startSleepTimer() {
  */
 void btn1_1shortclick_func() {
   startSleepTimer();
-  curMode++;
-  if (lowBattery && curMode > 1) {
+  if (lowBattery && curMode == 1) {
     curMode = 0;
   }
-  if (curMode > 5) curMode = 0;
+  else {
+    curMode++;
+    if (curMode > 5) curMode = 0;
+  }
   if (debug) {
     Serial.print("curMode = ");
     Serial.println(curMode);
@@ -100,7 +106,7 @@ void wakeupISR() {
  */
 void updateChargeLED() {
   chargingPinVolts = analogRead(chargingPin)*1.1/1023.0*6;
-  if (chargingPinVolts > 4.8 || curMode > 0) {
+  if (chargingPinVolts > chargingThresholdVolts || curMode > 0) {
     chargingLEDs.on();
   } else {
     chargingLEDs.off();
@@ -110,16 +116,18 @@ void updateChargeLED() {
 void checkBatVolts() {
   batVolts = analogRead(batPin)*1.1/1023.0*6;
   // turn off the light if the battery voltage is waaay too low
-  if (batVolts <= 3.2) {
+  if (batVolts <= deadBatVolts) {
     curMode = 0;
   } 
   // turn on the light in extended low mode if battery is low and the light is turned on 
-  else if (batVolts >= 3.2 && batVolts <= 3.7 && curMode > 0) {
+  else if (batVolts > deadBatVolts && batVolts <= lowBatVolts) {
     lowBattery = true;
-    curMode = 1;
   } 
   else {
     lowBattery = false;
+  }
+  if (curMode > 1 && lowBattery) {
+    curMode = 1;
   }
 }
 
@@ -169,6 +177,7 @@ void offMode() {
  * dim LEDs flashing, charging LED on, bright LEDs off
  */
 void extendedLowMode() {
+  highLEDs.off();
   // 1 Hz, single 30% DC flash
   updatePeriodinMillis = 100;
   keyPoints[0] = 0;
