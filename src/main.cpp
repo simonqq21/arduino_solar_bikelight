@@ -4,6 +4,7 @@
 #include "LEDlib.h"
 #include <avr/sleep.h>  
 #include <avr/wdt.h> 
+#include <EEPROM.h> 
 
 /**
  * low LEDs - 7 dim red LEDs 
@@ -34,6 +35,14 @@ LED highLEDs(highLEDsPin);
  * charging LED is off when (not charging and off), and on when (the low LEDs are on or when charging)
  */
 int curMode = 0;
+/** automatic mode  
+ * If true, the light will turn off when it is being charged (either via solar or USB) and turn on 
+ *  when charging stops. This makes the light turn off in bright light and turn on in the dark.
+ * If false, the light will remain turned on regardless if it is being charged or not until the user 
+ *  turns it off.
+ * */ 
+
+bool autoMode = false;
 double chargingPinVolts, batVolts;
 bool lowBattery;
 
@@ -46,6 +55,7 @@ unsigned int keyPoints[4];
 // flashCycleTimer - used to keep time
 unsigned long flashCycleTimer;
 unsigned long powerOnTime; 
+unsigned long btnLast2ShortClickTime; 
 
 const double chargingThresholdVolts = 4.0;
 const double deadBatVolts = 3.2;
@@ -85,6 +95,33 @@ void btn1_1shortclick_func() {
   wdt_reset();
 }
 
+/**
+ * double click - toggle autoMode
+ */
+void btn1_2shortclick_func() {
+  btnLast2ShortClickTime = millis();
+  startSleepTimer();
+  autoMode = !autoMode; 
+  chargingLEDs.setLoopUnitDuration(200);
+  if (autoMode) {
+    bool loopSeq[] = {0,1,0,1,0};
+    chargingLEDs.startTimer(1000, true);
+    chargingLEDs.setLoopSequence(loopSeq, 5);
+    chargingLEDs.startLoop();
+  } else {
+    bool loopSeq[] = {0,1,0};
+    chargingLEDs.startTimer(600, true);
+    chargingLEDs.setLoopSequence(loopSeq, 3);
+    chargingLEDs.startLoop();
+  }
+  if (debug) {
+    Serial.print("autoMode=");
+    Serial.println(autoMode);
+  }
+  // reset watchdog timer
+  wdt_reset();
+}
+
 // ISR for interrupt button library 
 void btn1_change_func() {
   btn1.changeInterruptFunc();
@@ -105,6 +142,9 @@ void wakeupISR() {
  *  else turn off the charging LED. 
  */
 void updateChargeLED() {
+  if (millis() - btnLast2ShortClickTime < 1000) {
+    return;
+  }
   chargingPinVolts = analogRead(chargingPin)*1.1/1023.0*6;
   if (chargingPinVolts > chargingThresholdVolts || curMode > 0) {
     chargingLEDs.on();
@@ -131,7 +171,7 @@ void checkBatVolts() {
   }
 }
 
-// ISR triggered by watchdog timer every 4 seconds during deep sleep,
+// ISR triggered by watchdog timer every 1 seconds during deep sleep,
 // before going back to sleep.
 ISR (WDT_vect) {
   wdt_reset();
@@ -266,6 +306,7 @@ void setup() {
   Serial.println("start");
   btn1.begin(btn1_change_func);
   btn1.set1ShortPressFunc(btn1_1shortclick_func);
+  btn1.set2ShortPressFunc(btn1_2shortclick_func);
   lowLEDs.begin();
   chargingLEDs.begin();
   highLEDs.begin();

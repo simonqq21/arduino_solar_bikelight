@@ -56,63 +56,63 @@ void InterruptButton::loop() {
             // Serial.print("btn pressed ");
             // Serial.println(millis() - _lastClickTime);
             _lastClickTime = millis();
-            // _numClicks++;
-            if (_1ShortPressFunc != NULL) {
-                _1ShortPressFunc();
-            } 
+            _numClicks++;
+            // if (_1ShortPressFunc != NULL) {
+            //     _1ShortPressFunc();
+            // } 
         }
         // else Serial.print("btn released ");
         _dbTimerStarted = false;
     }
 
-    // if (_numClicks) {
-    //     if (millis() - _lastClickTime > MULTICLICK_DURATION) {
-    //         if (digitalRead(_pin)) {
-    //             // Serial.print("button clicked ");
-    //             // Serial.print(_numClicks);
-    //             // Serial.println(" times.");
-    //             switch (_numClicks) {
-    //                 case 1: 
-    //                     if (_1ShortPressFunc != NULL) {
-    //                         _1ShortPressFunc();
-    //                         break;
-    //                     }             
-    //                 case 2: 
-    //                 if (_2ShortPressFunc != NULL) {
-    //                     _2ShortPressFunc();
-    //                     break;
-    //                 }
-    //                 default: 
-    //                 if (_3ShortPressFunc != NULL) {
-    //                     _3ShortPressFunc();
-    //                 }
-    //             }
-    //             _numClicks = 0; 
-    //         }
-    //     }
-    //     if (millis() - _lastClickTime > LONGCLICK_DURATION) {
-    //         if (!digitalRead(_pin)) {
-    //             // Serial.print("button long clicked ");
-    //             // Serial.print(_numClicks);
-    //             // Serial.println(" times.");
-    //             switch (_numClicks) {
-    //                 case 1: 
-    //                     if (_1LongPressFunc != NULL) {
-    //                         _1LongPressFunc();
-    //                         break;
-    //                     }
-    //                 case 2: 
-    //                     if (_2LongPressFunc != NULL) {
-    //                         _2LongPressFunc();
-    //                         break;   
-    //                     }
-    //                 default: 
-    //                     if (_3LongPressFunc != NULL) {
-    //                         _3LongPressFunc();
-    //                     }
-    //             }
-    //             _numClicks = 0; 
-    //         }
-    //     }
-    // }
+    if (_numClicks) {
+        if (millis() - _lastClickTime > MULTICLICK_DURATION) {
+            if (digitalRead(_pin)) {
+                // Serial.print("button clicked ");
+                // Serial.print(_numClicks);
+                // Serial.println(" times.");
+                switch (_numClicks) {
+                    case 1: 
+                        if (_1ShortPressFunc != NULL) {
+                            _1ShortPressFunc();
+                            break;
+                        }             
+                    case 2: 
+                    if (_2ShortPressFunc != NULL) {
+                        _2ShortPressFunc();
+                        break;
+                    }
+                    default: 
+                    if (_3ShortPressFunc != NULL) {
+                        _3ShortPressFunc();
+                    }
+                }
+                _numClicks = 0; 
+            }
+        }
+        if (millis() - _lastClickTime > LONGCLICK_DURATION) {
+            if (!digitalRead(_pin)) {
+                // Serial.print("button long clicked ");
+                // Serial.print(_numClicks);
+                // Serial.println(" times.");
+                switch (_numClicks) {
+                    case 1: 
+                        if (_1LongPressFunc != NULL) {
+                            _1LongPressFunc();
+                            break;
+                        }
+                    case 2: 
+                        if (_2LongPressFunc != NULL) {
+                            _2LongPressFunc();
+                            break;   
+                        }
+                    default: 
+                        if (_3LongPressFunc != NULL) {
+                            _3LongPressFunc();
+                        }
+                }
+                _numClicks = 0; 
+            }
+        }
+    }
 }
