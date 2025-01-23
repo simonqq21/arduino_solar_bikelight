@@ -47,7 +47,8 @@ byte savedMode;
  * If false, the light will remain turned on regardless if it is being charged or not until the user 
  *  turns it off.
  * */ 
-bool autoMode = false;
+bool autoMode = false; 
+int chargingPinReading;
 double chargingPinVolts, batVolts;
 bool lowBattery;
 bool isCharging; 
@@ -62,8 +63,9 @@ unsigned int keyPoints[4];
 // flashCycleTimer - used to keep time
 unsigned long flashCycleTimer;
 unsigned long powerOnTime; 
-unsigned long btnLastTime2Clicked; 
-unsigned long btnLastTimeClicked;
+unsigned long lastTimeBtnDoubleClicked; 
+unsigned long lastTimeBtnClicked;
+unsigned long lastTimeChargingVoltsExceeded;
 const double chargingThresholdVolts = 4.0;
 const double deadBatVolts = 3.2;
 const double lowBatVolts = 3.78;
@@ -91,13 +93,15 @@ void btn1_1shortclick_func() {
   if (autoMode && isCharging) {
     curMode = savedMode;
   }
-  btnLastTimeClicked = millis();
+  lastTimeBtnClicked = millis();
   if (lowBattery && curMode == 1) {
     curMode = 0;
   }
   else {
     curMode++;
-    if (curMode > 5) curMode = 0;
+    if (curMode > 5) {
+      curMode = 0;
+    }
   }
   if (autoMode) {
     savedMode = curMode;
@@ -115,8 +119,8 @@ void btn1_1shortclick_func() {
  * double click - toggle autoMode
  */
 void btn1_2shortclick_func() {
-  btnLastTime2Clicked = millis();
-  btnLastTimeClicked = millis();
+  lastTimeBtnDoubleClicked = millis();
+  lastTimeBtnClicked = millis();
   startSleepTimer();
   autoMode = !autoMode; 
   chargingLEDs.setLoopUnitDuration(200);
@@ -134,9 +138,13 @@ void btn1_2shortclick_func() {
   if (debug) {
     Serial.print("autoMode=");
     Serial.println(autoMode);
+    Serial.print("mode=");
+    Serial.print(curMode);
+    Serial.println(); 
   }
   // reset watchdog timer
   wdt_reset();
+  
 }
 
 // ISR for interrupt button library 
@@ -159,28 +167,32 @@ void wakeupISR() {
  *  else turn off the charging LED. 
  */
 void updateChargeLED() {
-  if (!isSleeping && millis() - btnLastTime2Clicked < 1000) {
+  if (!isSleeping && millis() - lastTimeBtnDoubleClicked < 1000) {
     return;
   }
-  chargingPinVolts = analogRead(chargingPin)*1.1/1023.0*6;
+  chargingPinReading = analogRead(chargingPin);
+  chargingPinVolts = chargingPinReading*1.1/1023.0*6;
   if (chargingPinVolts > chargingThresholdVolts || curMode > 0) { 
     chargingLEDs.on();
   } else {
-    isCharging = false;
     chargingLEDs.off();
   }
-  if (chargingPinVolts > chargingThresholdVolts) {
+  // charging pin value debouncing
+  // 
+  if (chargingPinVolts <= chargingThresholdVolts) {
+    lastTimeChargingVoltsExceeded = millis();
+  }
+  if (millis() - lastTimeChargingVoltsExceeded > 500 && chargingPinVolts > chargingThresholdVolts) {
     isCharging = true;
   }
   else {
     isCharging = false;
   }
-  Serial.print(chargingPinVolts);
-  Serial.print(", ");
-  Serial.print(chargingThresholdVolts);
-  Serial.print(", ");
-  Serial.print("ischarging=");
-  Serial.println(isCharging);
+  // Serial.print(chargingPinVolts);
+  // Serial.print(", ");
+  // Serial.print(chargingThresholdVolts);
+  // Serial.print(", ");
+  
 }
 
 void checkBatVolts() {
@@ -235,29 +247,38 @@ Else if the light is not in autoMode {
 
 void checkAutoMode() {
   if (autoMode) {
+    Serial.print("curMode = ");
+    Serial.print(curMode);
+    Serial.print(", savedmode = ");
+    Serial.print(savedMode);
+    Serial.print(" ischarging=");
+    Serial.print(isCharging);
+    Serial.println();
     if (isCharging) {
-      if (millis() - btnLastTimeClicked > 4000) {
-        curMode = 0;
+      // Serial.print(chargingPinReading);
+      // Serial.print(", ");
+      // Serial.print(chargingPinVolts);
+      // Serial.print(", ");
+      // Serial.print(chargingThresholdVolts);
+      // Serial.print(", ");
+      // Serial.print("ischarging=");
+      // Serial.print(isCharging);
+      // Serial.println();
+      if (millis() - lastTimeBtnClicked > 4000) {
+        if (curMode) {
+          savedMode = curMode;
+          curMode = 0;
+        }
       } 
-      // else {
-      //   if (savedMode != curMode) {
-      //     savedMode = curMode;
-      //   }
-      // }
-    } else {
-      if (curMode != savedMode) {
+    } 
+    else {
+      if (curMode != savedMode && savedMode) {
         curMode = savedMode;
+        btn1.begin(btn1_change_func);
+        // reset button temporarily to prevent double trigger
+        btn1.reset();
       }
     }
-  //   else if (!isCharging && savedMode) {
-  //     curMode = savedMode;
-  //   }
-  } else {
-  //   if (isCharging) {
-  //     if (savedMode && !curMode) {
-  //       curMode = savedMode;
-  //     }
-  //   }
   }
 }
 
@@ -276,18 +297,19 @@ ISR (WDT_vect) {
 void offMode() {
   lowLEDs.off();
   highLEDs.aSet(0);
-  // highLEDs.off();
-  if (millis() - powerOnTime > 300) {
+  highLEDs.off();
+  if (millis() - powerOnTime > 3000) {
     isSleeping = true;
     // set interrupt to perform the watchdog ISR every four seconds then go back to sleep
     // clear MCU Status Register
     MCUSR = 0;
     // set watchdog timer change enable and watchdog enable
-    WDTCSR = bit (WDCE) | bit (WDE);
+    WDTCSR = 1 << WDCE | 1 << WDE;
     // set WDP3 to WDP0 to trigger watchdog interrupt every 4 seconds and 
     // set WDIE enable watchdog interrupt
     // WDTCSR = bit(WDIE) | 1 << WDP3 & ~bit (WDP2) & ~bit (WDP1) & ~bit (WDP0);
-    WDTCSR = bit(WDIE) | 0 << WDP3 | 1 << WDP2 | 1 << WDP1 | 0 << WDP0;
+    // WDTCSR = 1 << WDIE | 1 << WDP3 | 0 << WDP2 | 0 << WDP1 | 0 << WDP0;
+    WDTCSR = 1 << WDIE | 0 << WDP3 | 1 << WDP2 | 1 << WDP1 | 0 << WDP0;
 
     // sleep CPU until woken up by the button
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -357,7 +379,8 @@ void flashingMode() {
     flashCycleTimer = millis();
     if (ctr1 < keyPoints[1]) {
       highLEDs.set(true);
-    } else highLEDs.set(false);
+    } 
+    else highLEDs.set(false);
     ctr1 = ctr1 > keyPoints[2] - 1? 0:ctr1 + 1;
   }
 }
@@ -435,12 +458,16 @@ void loop() {
   checkBatVolts(); 
   checkAutoMode();
   if (debug) {
-    if (millis() - lastTimePrinted > 1000) {
+    if (millis() - lastTimePrinted > 10) {
       lastTimePrinted = millis();
-      Serial.print(analogRead(chargingPin));
-      Serial.print(", ");
-      Serial.print(analogRead(batPin));
-      Serial.println();
+      // Serial.print(analogRead(chargingPin));
+      // Serial.print(", ");
+      // Serial.print(analogRead(batPin));
+      // Serial.print("ischarging=");
+      // Serial.print(isCharging);
+      // Serial.print("mode=");
+      // Serial.print(curMode);
+      // Serial.println(); 
     }
   }
   

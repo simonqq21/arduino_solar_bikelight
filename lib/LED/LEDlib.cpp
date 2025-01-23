@@ -61,10 +61,10 @@ void LED::loop() {
 
     // write values to the LED pin only upon change to avoid flickering
     if (_ledMode != LED_ANALOGSET) {
-        if (_curLEDDigitalVal != _nextLEDDigitalVal) {
-            _curLEDDigitalVal = _nextLEDDigitalVal;
-            digitalWrite(_pin, _curLEDDigitalVal);
-        }
+        // if (_curLEDDigitalVal != _nextLEDDigitalVal) {
+        _curLEDDigitalVal = _nextLEDDigitalVal;
+        digitalWrite(_pin, _curLEDDigitalVal);
+        // }
     }
 }
 
