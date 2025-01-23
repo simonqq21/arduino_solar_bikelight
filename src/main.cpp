@@ -1,3 +1,7 @@
+/**
+ * TODO: 
+ * auto mode
+ */
 #include <Arduino.h>
 #include "math.h"
 #include "buttonlib2.h"
@@ -12,13 +16,13 @@
  * charging LED - 1 dim red LED (identical to low LEDs, also used for rear light)
  */
 
-int btn1Pin = 2;
+const int btn1Pin = 2;
 InterruptButton btn1(btn1Pin);
-int lowLEDsPin = 4;
-int chargingLEDsPin = 5;
-int highLEDsPin = 6;
-int chargingPin = A0;
-int batPin = A1;
+const int lowLEDsPin = 4;
+const int chargingLEDsPin = 5;
+const int highLEDsPin = 6;
+const int chargingPin = A0;
+const int batPin = A1;
 LED lowLEDs(lowLEDsPin);
 LED chargingLEDs(chargingLEDsPin);
 LED highLEDs(highLEDsPin);
@@ -34,22 +38,25 @@ LED highLEDs(highLEDsPin);
  * 6 - charging(either via USB port or solar panel) - low LEDs off, charging LEDs on, high LEDs off
  * charging LED is off when (not charging and off), and on when (the low LEDs are on or when charging)
  */
-int curMode = 0;
+byte curMode = 0;
+byte lastMode;
+
 /** automatic mode  
  * If true, the light will turn off when it is being charged (either via solar or USB) and turn on 
  *  when charging stops. This makes the light turn off in bright light and turn on in the dark.
  * If false, the light will remain turned on regardless if it is being charged or not until the user 
  *  turns it off.
  * */ 
-
 bool autoMode = false;
 double chargingPinVolts, batVolts;
 bool lowBattery;
+bool isCharging; 
+bool isSleeping; 
 
 // update period for fading modes
 unsigned int updatePeriodinMillis = 5;
 // period length for flashing and fading modes
-int totalPeriodLengthinMillis = 1000;
+const int totalPeriodLengthinMillis = 1000;
 // keypoints per mode cycle 
 unsigned int keyPoints[4];
 // flashCycleTimer - used to keep time
@@ -59,7 +66,7 @@ unsigned long btnLast2ShortClickTime;
 
 const double chargingThresholdVolts = 4.0;
 const double deadBatVolts = 3.2;
-const double lowBatVolts = 3.7;
+const double lowBatVolts = 3.78;
 
 /**
  * ctr1 is a counter variable used to animate the LEDs.
@@ -69,10 +76,11 @@ const double lowBatVolts = 3.7;
  */
 unsigned int ctr1;
 unsigned long lastTimePrinted = 0;
-bool debug = true;
+const bool debug = true;
 
 void startSleepTimer() {
   powerOnTime = millis();
+  isSleeping = false;
 }
 
 /**
@@ -142,13 +150,15 @@ void wakeupISR() {
  *  else turn off the charging LED. 
  */
 void updateChargeLED() {
-  if (millis() - btnLast2ShortClickTime < 1000) {
+  if (!isSleeping && millis() - btnLast2ShortClickTime < 1000) {
     return;
   }
   chargingPinVolts = analogRead(chargingPin)*1.1/1023.0*6;
-  if (chargingPinVolts > chargingThresholdVolts || curMode > 0) {
+  if (chargingPinVolts > chargingThresholdVolts || curMode > 0) { 
+    isCharging = true;
     chargingLEDs.on();
   } else {
+    isCharging = false;
     chargingLEDs.off();
   }
 }
@@ -171,6 +181,26 @@ void checkBatVolts() {
   }
 }
 
+/**
+ * if autoMode is on, turn off the light when charging 
+ * else, the light can remain on when charging
+ */
+void checkAutoMode() {
+  // if (autoMode) {
+  //   if (isCharging) {
+  //     lastMode = curMode;
+  //     curMode = 0;
+  //   }
+  //   else {
+  //     curMode = lastMode;
+  //   }
+  // } else {
+  //   if (isCharging) {
+  //     curMode = lastMode;
+  //   }
+  // }
+}
+
 // ISR triggered by watchdog timer every 1 seconds during deep sleep,
 // before going back to sleep.
 ISR (WDT_vect) {
@@ -187,6 +217,7 @@ void offMode() {
   highLEDs.aSet(0);
   // highLEDs.off();
   if (millis() - powerOnTime > 300) {
+    isSleeping = true;
     // set interrupt to perform the watchdog ISR every four seconds then go back to sleep
     // clear MCU Status Register
     MCUSR = 0;
@@ -341,14 +372,16 @@ void loop() {
 
   updateChargeLED();
   checkBatVolts(); 
-
-  if (millis() - lastTimePrinted > 1000) {
-    lastTimePrinted = millis();
-    Serial.print(analogRead(chargingPin));
-    Serial.print(", ");
-    Serial.print(analogRead(batPin));
-    Serial.println();
+  if (debug) {
+    if (millis() - lastTimePrinted > 1000) {
+      lastTimePrinted = millis();
+      Serial.print(analogRead(chargingPin));
+      Serial.print(", ");
+      Serial.print(analogRead(batPin));
+      Serial.println();
+    }
   }
+  
 }
 
 // // **** INCLUDES *****
