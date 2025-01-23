@@ -39,7 +39,7 @@ LED highLEDs(highLEDsPin);
  * charging LED is off when (not charging and off), and on when (the low LEDs are on or when charging)
  */
 byte curMode = 0;
-byte lastMode;
+byte savedMode;
 
 /** automatic mode  
  * If true, the light will turn off when it is being charged (either via solar or USB) and turn on 
@@ -89,7 +89,7 @@ void startSleepTimer() {
 void btn1_1shortclick_func() {
   startSleepTimer();
   if (autoMode && isCharging) {
-    curMode = lastMode;
+    curMode = savedMode;
   }
   btnLastTimeClicked = millis();
   if (lowBattery && curMode == 1) {
@@ -99,6 +99,10 @@ void btn1_1shortclick_func() {
     curMode++;
     if (curMode > 5) curMode = 0;
   }
+  if (autoMode) {
+    savedMode = curMode;
+  }
+
   if (debug) {
     Serial.print("curMode = ");
     Serial.println(curMode);
@@ -122,9 +126,9 @@ void btn1_2shortclick_func() {
     chargingLEDs.setLoopSequence(loopSeq, 5);
     chargingLEDs.startLoop();
   } else {
-    bool loopSeq[] = {0,1,0};
-    chargingLEDs.startTimer(600, true);
-    chargingLEDs.setLoopSequence(loopSeq, 3);
+    bool loopSeq[] = {0,1,0,0,0};
+    chargingLEDs.startTimer(1000, true);
+    chargingLEDs.setLoopSequence(loopSeq, 5);
     chargingLEDs.startLoop();
   }
   if (debug) {
@@ -161,13 +165,22 @@ void updateChargeLED() {
   chargingPinVolts = analogRead(chargingPin)*1.1/1023.0*6;
   if (chargingPinVolts > chargingThresholdVolts || curMode > 0) { 
     chargingLEDs.on();
-    if (chargingPinVolts > chargingThresholdVolts) {
-      isCharging = true;
-    }
   } else {
     isCharging = false;
     chargingLEDs.off();
   }
+  if (chargingPinVolts > chargingThresholdVolts) {
+    isCharging = true;
+  }
+  else {
+    isCharging = false;
+  }
+  Serial.print(chargingPinVolts);
+  Serial.print(", ");
+  Serial.print(chargingThresholdVolts);
+  Serial.print(", ");
+  Serial.print("ischarging=");
+  Serial.println(isCharging);
 }
 
 void checkBatVolts() {
@@ -221,28 +234,31 @@ Else if the light is not in autoMode {
 */
 
 void checkAutoMode() {
-  // if (autoMode) {
-  //   if (isCharging) {
-  //     if (millis() - btnLastTimeClicked > 2000) {
-  //       curMode = 0;
-  //     } else {
-  //       if (lastMode != curMode) {
-  //         lastMode = curMode;
-  //       }
-  //     }
-  //   } else {
-  //     curMode = lastMode;
+  if (autoMode) {
+    if (isCharging) {
+      if (millis() - btnLastTimeClicked > 4000) {
+        curMode = 0;
+      } 
+      // else {
+      //   if (savedMode != curMode) {
+      //     savedMode = curMode;
+      //   }
+      // }
+    } else {
+      if (curMode != savedMode) {
+        curMode = savedMode;
+      }
+    }
+  //   else if (!isCharging && savedMode) {
+  //     curMode = savedMode;
   //   }
-  // //   else if (!isCharging && lastMode) {
-  // //     curMode = lastMode;
-  // //   }
-  // } else {
-  // //   if (isCharging) {
-  // //     if (lastMode && !curMode) {
-  // //       curMode = lastMode;
-  // //     }
-  // //   }
-  // }
+  } else {
+  //   if (isCharging) {
+  //     if (savedMode && !curMode) {
+  //       curMode = savedMode;
+  //     }
+  //   }
+  }
 }
 
 // ISR triggered by watchdog timer every 1 seconds during deep sleep,
