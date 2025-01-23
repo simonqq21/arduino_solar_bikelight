@@ -62,8 +62,8 @@ unsigned int keyPoints[4];
 // flashCycleTimer - used to keep time
 unsigned long flashCycleTimer;
 unsigned long powerOnTime; 
-unsigned long btnLast2ShortClickTime; 
-
+unsigned long btnLastTime2Clicked; 
+unsigned long btnLastTimeClicked;
 const double chargingThresholdVolts = 4.0;
 const double deadBatVolts = 3.2;
 const double lowBatVolts = 3.78;
@@ -88,6 +88,10 @@ void startSleepTimer() {
  */
 void btn1_1shortclick_func() {
   startSleepTimer();
+  if (autoMode && isCharging) {
+    curMode = lastMode;
+  }
+  btnLastTimeClicked = millis();
   if (lowBattery && curMode == 1) {
     curMode = 0;
   }
@@ -107,7 +111,8 @@ void btn1_1shortclick_func() {
  * double click - toggle autoMode
  */
 void btn1_2shortclick_func() {
-  btnLast2ShortClickTime = millis();
+  btnLastTime2Clicked = millis();
+  btnLastTimeClicked = millis();
   startSleepTimer();
   autoMode = !autoMode; 
   chargingLEDs.setLoopUnitDuration(200);
@@ -138,8 +143,8 @@ void btn1_change_func() {
 // ISR for waking up from deep sleep
 void wakeupISR() {
   startSleepTimer(); 
+  btn1_1shortclick_func();
   btn1.begin(btn1_change_func);
-  curMode = 1;
   // reset button temporarily to prevent double trigger
   btn1.reset();
 }
@@ -150,13 +155,15 @@ void wakeupISR() {
  *  else turn off the charging LED. 
  */
 void updateChargeLED() {
-  if (!isSleeping && millis() - btnLast2ShortClickTime < 1000) {
+  if (!isSleeping && millis() - btnLastTime2Clicked < 1000) {
     return;
   }
   chargingPinVolts = analogRead(chargingPin)*1.1/1023.0*6;
   if (chargingPinVolts > chargingThresholdVolts || curMode > 0) { 
-    isCharging = true;
     chargingLEDs.on();
+    if (chargingPinVolts > chargingThresholdVolts) {
+      isCharging = true;
+    }
   } else {
     isCharging = false;
     chargingLEDs.off();
@@ -182,22 +189,59 @@ void checkBatVolts() {
 }
 
 /**
- * if autoMode is on, turn off the light when charging 
- * else, the light can remain on when charging
- */
+
+If the light is in autoMode {
+  If the light is charging {
+    If the saved mode is different from the current mode {
+      Save the current mode 
+      // Set current mode to zero 
+    }
+    If the button is pressed {
+      Set current mode to the saved mode
+      Increment the current mode in a cycle 
+      Start a timer lightsTimer that keeps the lights on five seconds 
+        before it turns off due to autoMode and charging.
+      When that timer exceeds 5 seconds {
+        Save the current mode 
+        Set current mode to zero
+      }
+    }
+  }
+  Else if the light is not charging {
+    Resume the saved mode
+  }
+}
+Else if the light is not in autoMode {
+  Maintain the current mode 
+  If the saved mode is nonzero and the current mode is zero {
+    Resume the saved mode
+  }
+}
+
+*/
+
 void checkAutoMode() {
   // if (autoMode) {
   //   if (isCharging) {
-  //     lastMode = curMode;
-  //     curMode = 0;
-  //   }
-  //   else {
+  //     if (millis() - btnLastTimeClicked > 2000) {
+  //       curMode = 0;
+  //     } else {
+  //       if (lastMode != curMode) {
+  //         lastMode = curMode;
+  //       }
+  //     }
+  //   } else {
   //     curMode = lastMode;
   //   }
+  // //   else if (!isCharging && lastMode) {
+  // //     curMode = lastMode;
+  // //   }
   // } else {
-  //   if (isCharging) {
-  //     curMode = lastMode;
-  //   }
+  // //   if (isCharging) {
+  // //     if (lastMode && !curMode) {
+  // //       curMode = lastMode;
+  // //     }
+  // //   }
   // }
 }
 
@@ -207,6 +251,7 @@ ISR (WDT_vect) {
   wdt_reset();
   updateChargeLED();
   checkBatVolts();
+  checkAutoMode();
 }
 
 /**
@@ -372,6 +417,7 @@ void loop() {
 
   updateChargeLED();
   checkBatVolts(); 
+  checkAutoMode();
   if (debug) {
     if (millis() - lastTimePrinted > 1000) {
       lastTimePrinted = millis();
