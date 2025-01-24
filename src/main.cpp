@@ -26,6 +26,7 @@ const int batPin = A1;
 LED lowLEDs(lowLEDsPin);
 LED chargingLEDs(chargingLEDsPin);
 LED highLEDs(highLEDsPin);
+unsigned int deadBatCountDown, lowBatCountDown; 
 
 /**
  * Modes: 
@@ -50,7 +51,7 @@ byte savedMode;
 bool autoMode = false; 
 int chargingPinReading;
 double chargingPinVolts, batVolts;
-bool lowBattery;
+bool lowBattery, deadBattery;
 bool isCharging; 
 bool isSleeping; 
 
@@ -91,29 +92,38 @@ void startSleepTimer() {
  * single click - switch and cycle through modes
  */
 void btn1_1shortclick_func() {
+  // restart sleep timer
   startSleepTimer();
   lastTimeBtnClicked = millis();
-
+  // if auto mode is turned on and the light is charging, 
+  // set current mode to saved mode.
   if (autoMode && isCharging) {
     curMode = savedMode;
   }
+  // if the battery voltage is lower than the defined low battery 
+  // voltage plus a certain buffer value, it is considered battery low 
+  // when the button is pressed.
   if (batVolts < lowBatVolts + hysteresisBatVolts) {
     lowBattery = true;
   }
-  if (lowBattery && curMode >= 1) {
+  // if the battery is low and the current mode is greater than extended low mode, 
+  // set current mode to off mode.
+  if ((lowBattery && curMode >= 1) || deadBattery) {
     curMode = 0;
   }
+  // else, increment the current mode.
   else {
     curMode++;
   }
+  // Cycle current mode to zero when it exceeds the last mode.
   if (curMode > 5) {
     curMode = 0;
   }
-
+  // if auto mode is turned on, 
+  // set saved mode to current mode.
   if (autoMode) {
     savedMode = curMode;
   }
-
   if (debug) {
     Serial.print("curMode = ");
     Serial.println(curMode);
@@ -206,14 +216,33 @@ void checkBatVolts() {
   batVolts = analogRead(batPin)*1.1/1023.0*6;
   // turn off the light if the battery voltage is waaay too low
   if (batVolts <= deadBatVolts) {
-    curMode = 0;
+    deadBatCountDown++;
+    lowBatCountDown = 0;
+    if (deadBatCountDown > 10) {
+      deadBatCountDown = 0;
+      curMode = 0;
+      lowBattery = true;
+      deadBattery = true;
+    }
   } 
   // turn on the light in extended low mode if battery is low and the light is turned on 
   else if (batVolts > deadBatVolts && batVolts <= lowBatVolts) {
+    deadBatCountDown = 0;
+    lowBatCountDown++;
+    if (lowBatCountDown > 10) {
+      lowBatCountDown = 0;
+      curMode = 0;
+      lowBattery = true;
+    deadBattery = false;
+    }
     lowBattery = true;
+    deadBattery = false;
   } 
   else {
+    deadBatCountDown = 0;
+    lowBatCountDown = 0;
     lowBattery = false;
+    deadBattery = false;
   }
   if (curMode > 1 && lowBattery) {
     curMode = 1;
@@ -253,39 +282,49 @@ Else if the light is not in autoMode {
 */
 
 void checkAutoMode() {
-  if (autoMode) {
-    Serial.print("curMode = ");
-    Serial.print(curMode);
-    Serial.print(", savedmode = ");
-    Serial.print(savedMode);
-    Serial.print(" ischarging=");
-    Serial.print(isCharging);
-    Serial.println();
-    if (isCharging) {
-      // Serial.print(chargingPinReading);
-      // Serial.print(", ");
-      // Serial.print(chargingPinVolts);
-      // Serial.print(", ");
-      // Serial.print(chargingThresholdVolts);
-      // Serial.print(", ");
-      // Serial.print("ischarging=");
+  if (!deadBattery) {
+    if (autoMode) {
+      // Serial.print("curMode = ");
+      // Serial.print(curMode);
+      // Serial.print(", savedmode = ");
+      // Serial.print(savedMode);
+      // Serial.print(" ischarging=");
       // Serial.print(isCharging);
       // Serial.println();
-      if (millis() - lastTimeBtnClicked > 4000) {
-        if (curMode) {
-          savedMode = curMode;
-          curMode = 0;
-        }
+      if (isCharging) {
+        // Serial.print(chargingPinReading);
+        // Serial.print(", ");
+        // Serial.print(chargingPinVolts);
+        // Serial.print(", ");
+        // Serial.print(chargingThresholdVolts);
+        // Serial.print(", ");
+        // Serial.print("ischarging=");
+        // Serial.print(isCharging);
+        // Serial.println();
+        if (millis() - lastTimeBtnClicked > 4000) {
+          if (curMode) {
+            savedMode = curMode;
+            curMode = 0;
+          }
+        } 
       } 
-    } 
-    else {
-      if (curMode != savedMode && savedMode) {
-        curMode = savedMode;
-        btn1.begin(btn1_change_func);
-        // reset button temporarily to prevent double trigger
-        btn1.reset();
+      else {
+        if (curMode != savedMode && savedMode) {
+          curMode = savedMode;
+          btn1.begin(btn1_change_func);
+          // reset button temporarily to prevent double trigger
+          btn1.reset();
+        }
       }
     }
+  }
+  else {
+    // Serial.print("deadbattery=");
+    // Serial.print(deadBattery);
+    // Serial.print(", batvolts = ");
+    // Serial.print(batVolts);
+    // Serial.println();
+    savedMode = 0;
   }
 }
 
@@ -293,9 +332,10 @@ void checkAutoMode() {
 // before going back to sleep.
 ISR (WDT_vect) {
   wdt_reset();
+  checkBatVolts(); 
   updateChargeLED();
-  checkBatVolts();
   checkAutoMode();
+  checkBatVolts();
 }
 
 /**
@@ -460,24 +500,25 @@ void loop() {
     default: 
       offMode();
   }
-
-  updateChargeLED();
   checkBatVolts(); 
+  updateChargeLED();
   checkAutoMode();
+  checkBatVolts(); 
+  
   if (debug) {
     if (millis() - lastTimePrinted > 10) {
       lastTimePrinted = millis();
       // Serial.print(analogRead(chargingPin));
       // Serial.print(", ");
       // Serial.print(analogRead(batPin));
-      Serial.print(chargingPinVolts);
-      Serial.print(", ");
-      Serial.print(batVolts);
+      // Serial.print(chargingPinVolts);
+      // Serial.print(", ");
+      // Serial.print(batVolts);
       // Serial.print("ischarging=");
       // Serial.print(isCharging);
       // Serial.print("mode=");
       // Serial.print(curMode);
-      Serial.println(); 
+      // Serial.println(); 
     }
   }
   
