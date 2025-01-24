@@ -70,7 +70,7 @@ const double chargingThresholdVolts = 4.0;
 const double deadBatVolts = 3.2;
 const double lowBatVolts = 3.78;
 // const double lowBatVolts = 4.8;
-// const double hysteresisBatVolts = 0.1;
+const double hysteresisBatVolts = 0.1;
 
 /**
  * ctr1 is a counter variable used to animate the LEDs.
@@ -92,10 +92,14 @@ void startSleepTimer() {
  */
 void btn1_1shortclick_func() {
   startSleepTimer();
+  lastTimeBtnClicked = millis();
+
   if (autoMode && isCharging) {
     curMode = savedMode;
   }
-  lastTimeBtnClicked = millis();
+  if (batVolts < lowBatVolts + hysteresisBatVolts) {
+    lowBattery = true;
+  }
   if (lowBattery && curMode >= 1) {
     curMode = 0;
   }
@@ -105,10 +109,6 @@ void btn1_1shortclick_func() {
   if (curMode > 5) {
     curMode = 0;
   }
-
-  // if (batVolts >= lowBatVolts + hysteresisBatVolts) {
-    
-  // }
 
   if (autoMode) {
     savedMode = curMode;
