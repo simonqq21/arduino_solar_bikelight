@@ -171,6 +171,7 @@ void btn1_change_func() {
 
 // ISR for waking up from deep sleep
 void wakeupISR() {
+  ADCSRA |= 1 << ADEN;
   startSleepTimer(); 
   btn1_1shortclick_func();
   btn1.begin(btn1_change_func);
@@ -328,6 +329,7 @@ void checkAutoMode() {
 // ISR triggered by watchdog timer every 1 seconds during deep sleep,
 // before going back to sleep.
 ISR (WDT_vect) {
+  ADCSRA |= 1 << ADEN;
   wdt_reset();
   checkBatVolts(); 
   updateChargeLED();
@@ -362,6 +364,12 @@ void offMode() {
     attachInterrupt(digitalPinToInterrupt(2), wakeupISR, LOW);  
     // sleep_mode(); 
     // sei();
+    ADCSRA = 0;
+    // turn off brown-out enable in software
+    MCUCR = bit (BODS) | bit (BODSE);  // turn on brown-out enable select
+    MCUCR = bit (BODS);        // this must be done within 4 clock cycles of above
+    interrupts ();             // guarantees next instruction executed
+
     sleep_cpu();
     // sleep_disable();
     // sei();
@@ -521,106 +529,6 @@ void loop() {
   
 }
 
-// // **** INCLUDES *****
-// #include "LowPower.h"
-// #include <Arduino.h>
-
-// // Use pin 2 as wake up pin
-// const int wakeUpPin = 2;
-// bool sleep;
-// int i = 0; 
-
-// void isr1() {
-//   Serial.println("isr1");
-// }
-
-// void isr0()
-// {
-//   attachInterrupt(digitalPinToInterrupt(2), isr1, CHANGE);
-// }
-
-// void setup()
-// {
-//     // Configure wake up pin as input.
-//     // This will consumes few uA of current.
-//     pinMode(wakeUpPin, INPUT_PULLUP);   
-//     pinMode(LED_BUILTIN, OUTPUT);
-//     // Allow wake up pin to trigger interrupt on low.
-//     attachInterrupt(digitalPinToInterrupt(2), isr1, CHANGE);
-//     Serial.begin(115200);
-// }
-
-// void loop() 
-// {
-//     // Allow wake up pin to trigger interrupt on low.
-//     // attachInterrupt(digitalPinToInterrupt(2), wakeUp, LOW);
-    
-//     // Enter power down state with ADC and BOD module disabled.
-//     // Wake up when wake up pin is low.
-    
-
-//     // digitalWrite(LED_BUILTIN, HIGH);
-//     // delay(2000);
-//     // digitalWrite(LED_BUILTIN, LOW);
-//     // delay(2000);
-//     // Disable external pin interrupt on wake up pin.
-//     // detachInterrupt(digitalPinToInterrupt(2)); 
-    
-//     // Do something here
-//     // Example: Read sensor, data logging, data transmission.
-    
-//     delay(1000);
-//     digitalWrite(LED_BUILTIN, HIGH);
-//     delay(500);
-//     digitalWrite(LED_BUILTIN, LOW);
-//     delay(500);
-//     digitalWrite(LED_BUILTIN, HIGH);
-//     delay(1000);
-//     digitalWrite(LED_BUILTIN, LOW);
-
-//     // detachInterrupt(digitalPinToInterrupt(2));
-//     attachInterrupt(digitalPinToInterrupt(2), isr0, LOW); 
-//     LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); 
-// }
-
-
-      
-// int wakePin = 2;                 // pin used for waking up  
-// int led=13;  
-  
-// void wakeUpNow() {  
-//   // execute code here after wake-up before returning to the loop() function  
-//   // timers and code using timers (serial.print and more...) will not work here.  
-//   // we don't really need to execute any special functions here, since we  
-//   // just want the thing to wake up  
-// }  
-  
-// void setup() {  
-//   Serial.begin(115200);
-//   pinMode(wakePin, INPUT_PULLUP);  
-//   pinMode(led, OUTPUT);   
-//   attachInterrupt(0, wakeUpNow, LOW); // use interrupt 0 (pin 2) and run function wakeUpNow when pin 2 gets LOW  
-// }  
-  
-// void sleepNow() {  
-//     set_sleep_mode(SLEEP_MODE_PWR_DOWN);   // sleep mode is set here  
-//     sleep_enable();          // enables the sleep bit in the mcucr register  
-//     attachInterrupt(0,wakeUpNow, LOW); // use interrupt 0 (pin 2) and run function  
-//     sleep_mode();            // here the device is actually put to sleep!!  
-//     // THE PROGRAM CONTINUES FROM HERE AFTER WAKING UP  
-//     sleep_disable();         // first thing after waking from sleep: disable sleep...  
-//     detachInterrupt(0);      // disables interrupt 0 on pin 2 so the wakeUpNow code will not be executed during normal running time.  
-// }  
-  
-// void loop() {  
-//   digitalWrite(led, HIGH);  
-//   delay(1000);  
-//   digitalWrite(led, LOW);  
-//   sleepNow();     // sleep function called here 
-//   Serial.println("ABC");
-// }
-
-
 
 // #include <avr/sleep.h>
 // #include <avr/power.h>
@@ -632,6 +540,7 @@ void loop() {
 //   noInterrupts ();           // timed sequence follows
 //   sleep_enable();
  
+//   ADCSRA = 0;
 //   // turn off brown-out enable in software
 //   MCUCR = bit (BODS) | bit (BODSE);  // turn on brown-out enable select
 //   MCUCR = bit (BODS);        // this must be done within 4 clock cycles of above
