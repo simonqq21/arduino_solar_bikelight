@@ -69,6 +69,8 @@ unsigned long lastTimeChargingVoltsExceeded;
 const double chargingThresholdVolts = 4.0;
 const double deadBatVolts = 3.2;
 const double lowBatVolts = 3.78;
+// const double lowBatVolts = 4.8;
+// const double hysteresisBatVolts = 0.1;
 
 /**
  * ctr1 is a counter variable used to animate the LEDs.
@@ -94,15 +96,20 @@ void btn1_1shortclick_func() {
     curMode = savedMode;
   }
   lastTimeBtnClicked = millis();
-  if (lowBattery && curMode == 1) {
+  if (lowBattery && curMode >= 1) {
     curMode = 0;
   }
   else {
     curMode++;
-    if (curMode > 5) {
-      curMode = 0;
-    }
   }
+  if (curMode > 5) {
+    curMode = 0;
+  }
+
+  // if (batVolts >= lowBatVolts + hysteresisBatVolts) {
+    
+  // }
+
   if (autoMode) {
     savedMode = curMode;
   }
@@ -463,11 +470,14 @@ void loop() {
       // Serial.print(analogRead(chargingPin));
       // Serial.print(", ");
       // Serial.print(analogRead(batPin));
+      Serial.print(chargingPinVolts);
+      Serial.print(", ");
+      Serial.print(batVolts);
       // Serial.print("ischarging=");
       // Serial.print(isCharging);
       // Serial.print("mode=");
       // Serial.print(curMode);
-      // Serial.println(); 
+      Serial.println(); 
     }
   }
   
