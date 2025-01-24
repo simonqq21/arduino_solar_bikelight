@@ -231,12 +231,9 @@ void checkBatVolts() {
     lowBatCountDown++;
     if (lowBatCountDown > 10) {
       lowBatCountDown = 0;
-      curMode = 0;
       lowBattery = true;
     deadBattery = false;
     }
-    lowBattery = true;
-    deadBattery = false;
   } 
   else {
     deadBatCountDown = 0;
