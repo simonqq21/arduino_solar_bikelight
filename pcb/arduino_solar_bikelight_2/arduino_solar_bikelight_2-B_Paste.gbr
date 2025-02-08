@@ -1,0 +1,24 @@
+%TF.GenerationSoftware,KiCad,Pcbnew,8.0.5*%
+%TF.CreationDate,2025-02-06T11:19:09+08:00*%
+%TF.ProjectId,arduino_solar_bikelight_2,61726475-696e-46f5-9f73-6f6c61725f62,rev?*%
+%TF.SameCoordinates,Original*%
+%TF.FileFunction,Paste,Bot*%
+%TF.FilePolarity,Positive*%
+%FSLAX46Y46*%
+G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
+G04 Created by KiCad (PCBNEW 8.0.5) date 2025-02-06 11:19:09*
+%MOMM*%
+%LPD*%
+G01*
+G04 APERTURE LIST*
+%TA.AperFunction,Profile*%
+%ADD10C,0.050000*%
+%TD*%
+G04 APERTURE END LIST*
+D10*
+X122665000Y-36830000D02*
+X204665000Y-36830000D01*
+X204665000Y-86830000D01*
+X122665000Y-86830000D01*
+X122665000Y-36830000D01*
+M02*
