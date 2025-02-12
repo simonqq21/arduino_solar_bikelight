@@ -1,0 +1,9 @@
+Designator,Val,Package,Mid X ,Mid Y ,Rotation ,Layer 
+R6,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,172.87,-71.395,0,bottom
+R7,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,172.87,-113.395,0,bottom
+R8,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,172.87,-85.395,0,bottom
+R9,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,172.87,-99.395,0,bottom
+R10,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,151.87,-71.395,0,bottom
+R11,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,153.445,-85.395,0,bottom
+R12,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,151.87,-99.395,0,bottom
+R13,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,151.87,-113.395,0,bottom
