@@ -503,6 +503,7 @@
       "/HIGH_LED": "power",
       "/HIGH_LED_OUT+": "power",
       "/HIGH_LED_PIN": "signal",
+      "/LDR_PIN": "signal",
       "/LOW1_LED": "power",
       "/LOW1_LED_PIN": "signal",
       "/LOW2_LED": "power",
@@ -531,8 +532,8 @@
       "gencad": "",
       "idf": "",
       "netlist": "",
-      "plot": "",
-      "pos_files": "",
+      "plot": "production/",
+      "pos_files": "production/",
       "specctra_dsn": "",
       "step": "",
       "svg": "",
@@ -542,7 +543,7 @@
   },
   "schematic": {
     "annotate_start_num": 0,
-    "bom_export_filename": "bikelight_BOM.csv",
+    "bom_export_filename": "production\\arduino_solar_bikelight_bom.csv",
     "bom_fmt_presets": [],
     "bom_fmt_settings": {
       "field_delimiter": ",",

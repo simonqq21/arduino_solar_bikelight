@@ -1,9 +1,0 @@
-Designator,Val,Package,Mid X ,Mid Y ,Rotation ,Layer 
-Q1,BSS138,SOT-23,165.445,-98.395,0,top
-Q2,BSS138,SOT-23,165.445,-90.645,0,top
-Q3,BSS138,SOT-23,165.445,-82.545,0,top
-R1,50k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,149.945,-86.395,90,top
-R2,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,147.445,-86.395,90,top
-R3,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,164.995,-94.595,0,top
-R4,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,164.995,-86.845,0,top
-R5,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,164.995,-78.595,0,top

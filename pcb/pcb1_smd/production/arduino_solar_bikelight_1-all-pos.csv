@@ -1,0 +1,18 @@
+Designator,Val,Package,Mid X ,Mid Y ,Rotation ,Layer 
+Q1,BSS138,SOT-23,165.445,-98.395,90,top
+Q2,BSS138,SOT-23,165.445,-90.645,90,top
+Q3,BSS138,SOT-23,165.445,-82.545,90,top
+R1,50k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,149.545,-86.395,90,top
+R2,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,147.045,-86.395,90,top
+R3,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,164.995,-94.595,0,top
+R4,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,164.995,-86.845,0,top
+R5,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,164.995,-78.595,0,top
+R6,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,172.87,-71.395,0,top
+R7,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,172.87,-113.395,0,top
+R8,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,172.87,-85.395,0,top
+R9,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,172.87,-99.395,0,top
+R10,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,151.87,-71.395,0,top
+R11,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,154.245,-86.095,90,top
+R12,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,153.245,-99.395,0,top
+R13,150,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,151.87,-113.395,0,top
+R15,10k,R_0805_2012Metric_Pad1.20x1.40mm_HandSolder,177.145,-115.395,-90,top
