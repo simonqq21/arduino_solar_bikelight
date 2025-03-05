@@ -18,8 +18,8 @@
 
 const int btn1Pin = 2;
 InterruptButton btn1(btn1Pin);
-const int lowLEDsPin = 4;
-const int lowLEDs2Pin = 5;
+const int lowLEDs2Pin = 4;
+const int lowLEDsPin = 5;
 const int highLEDsPin = 6;
 // const int chargingPin = A0;
 const int batPin = A1;
@@ -310,7 +310,7 @@ ISR (WDT_vect) {
  */
 void offMode() {
   lowLEDs.off();
-  highLEDs.aSet(0);
+  lowLEDs2.off();
   highLEDs.off();
   if (millis() - powerOnTime > 3000) {
     isSleeping = true;
@@ -351,8 +351,8 @@ void offMode() {
  * dim LEDs flashing, charging LED on, bright LEDs off
  */
 void extendedLowMode() {
-
   highLEDs.off();
+  lowLEDs.on();
   // 1 Hz, single 30% DC flash
   updatePeriodinMillis = 100;
   keyPoints[0] = 0;
@@ -361,8 +361,8 @@ void extendedLowMode() {
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
     if (ctr1 < keyPoints[1]) {
-      lowLEDs.set(true);
-    } else lowLEDs.set(false);
+      lowLEDs2.set(true);
+    } else lowLEDs2.set(false);
     ctr1 = ctr1 > keyPoints[2] - 1? 0:ctr1 + 1;
   }
 }
@@ -373,6 +373,7 @@ void extendedLowMode() {
  */
 void lowMode() {
   lowLEDs.on();
+  lowLEDs2.on();
   highLEDs.off();
 }
 
