@@ -19,12 +19,12 @@
 const int btn1Pin = 2;
 InterruptButton btn1(btn1Pin);
 const int lowLEDsPin = 4;
-const int chargingLEDsPin = 5;
+const int lowLEDs2Pin = 5;
 const int highLEDsPin = 6;
-const int chargingPin = A0;
+// const int chargingPin = A0;
 const int batPin = A1;
 LED lowLEDs(lowLEDsPin);
-LED chargingLEDs(chargingLEDsPin);
+LED lowLEDs2(lowLEDs2Pin);
 LED highLEDs(highLEDsPin);
 unsigned int deadBatCountDown, lowBatCountDown; 
 
@@ -140,17 +140,17 @@ void btn1_2shortclick_func() {
   lastTimeBtnClicked = millis();
   startSleepTimer();
   autoMode = !autoMode; 
-  chargingLEDs.setLoopUnitDuration(200);
+  lowLEDs2.setLoopUnitDuration(200);
   if (autoMode) {
     bool loopSeq[] = {0,1,0,1,0};
-    chargingLEDs.startTimer(1000, true);
-    chargingLEDs.setLoopSequence(loopSeq, 5);
-    chargingLEDs.startLoop();
+    lowLEDs2.startTimer(1000, true);
+    lowLEDs2.setLoopSequence(loopSeq, 5);
+    lowLEDs2.startLoop();
   } else {
     bool loopSeq[] = {0,1,0,0,0};
-    chargingLEDs.startTimer(1000, true);
-    chargingLEDs.setLoopSequence(loopSeq, 5);
-    chargingLEDs.startLoop();
+    lowLEDs2.startTimer(1000, true);
+    lowLEDs2.setLoopSequence(loopSeq, 5);
+    lowLEDs2.startLoop();
   }
   if (debug) {
     Serial.print("autoMode=");
@@ -179,39 +179,7 @@ void wakeupISR() {
   btn1.reset();
 }
 
-/**
- * When the bike light is in Off Mode, 
- *  if the battery is charging, turn on the charging LED, 
- *  else turn off the charging LED. 
- */
-void updateChargeLED() {
-  if (!isSleeping && millis() - lastTimeBtnDoubleClicked < 1000) {
-    return;
-  }
-  chargingPinReading = analogRead(chargingPin);
-  chargingPinVolts = chargingPinReading*1.1/1023.0*6;
-  if (chargingPinVolts > chargingThresholdVolts || curMode > 0) { 
-    chargingLEDs.on();
-  } else {
-    chargingLEDs.off();
-  }
-  // charging pin value debouncing
-  // 
-  if (chargingPinVolts <= chargingThresholdVolts) {
-    lastTimeChargingVoltsExceeded = millis();
-  }
-  if (millis() - lastTimeChargingVoltsExceeded > 500 && chargingPinVolts > chargingThresholdVolts) {
-    isCharging = true;
-  }
-  else {
-    isCharging = false;
-  }
-  // Serial.print(chargingPinVolts);
-  // Serial.print(", ");
-  // Serial.print(chargingThresholdVolts);
-  // Serial.print(", ");
-  
-}
+
 
 void checkBatVolts() {
   batVolts = analogRead(batPin)*1.1/1023.0*6;
@@ -332,7 +300,7 @@ ISR (WDT_vect) {
   ADCSRA |= 1 << ADEN;
   wdt_reset();
   checkBatVolts(); 
-  updateChargeLED();
+  // updateChargeLED();
   checkAutoMode();
   checkBatVolts();
 }
@@ -383,6 +351,7 @@ void offMode() {
  * dim LEDs flashing, charging LED on, bright LEDs off
  */
 void extendedLowMode() {
+
   highLEDs.off();
   // 1 Hz, single 30% DC flash
   updatePeriodinMillis = 100;
@@ -475,7 +444,7 @@ void setup() {
   btn1.set1ShortPressFunc(btn1_1shortclick_func);
   btn1.set2ShortPressFunc(btn1_2shortclick_func);
   lowLEDs.begin();
-  chargingLEDs.begin();
+  lowLEDs2.begin();
   highLEDs.begin();
   analogReference(INTERNAL);
 }
@@ -483,7 +452,7 @@ void setup() {
 void loop() {
   btn1.loop();
   lowLEDs.loop();
-  chargingLEDs.loop();
+  lowLEDs2.loop();
   highLEDs.loop();
   
   switch (curMode) {
@@ -506,7 +475,7 @@ void loop() {
       offMode();
   }
   checkBatVolts(); 
-  updateChargeLED();
+  // updateChargeLED();
   checkAutoMode();
   checkBatVolts(); 
   
@@ -549,3 +518,38 @@ void loop() {
 // }  // end of setup
 
 // void loop () { }
+
+
+/**
+ * When the bike light is in Off Mode, 
+ *  if the battery is charging, turn on the charging LED, 
+ *  else turn off the charging LED. 
+ */
+// void updateChargeLED() {
+//   if (!isSleeping && millis() - lastTimeBtnDoubleClicked < 1000) {
+//     return;
+//   }
+//   chargingPinReading = analogRead(chargingPin);
+//   chargingPinVolts = chargingPinReading*1.1/1023.0*6;
+//   if (chargingPinVolts > chargingThresholdVolts || curMode > 0) { 
+//     chargingLEDs.on();
+//   } else {
+//     chargingLEDs.off();
+//   }
+//   // charging pin value debouncing
+//   // 
+//   if (chargingPinVolts <= chargingThresholdVolts) {
+//     lastTimeChargingVoltsExceeded = millis();
+//   }
+//   if (millis() - lastTimeChargingVoltsExceeded > 500 && chargingPinVolts > chargingThresholdVolts) {
+//     isCharging = true;
+//   }
+//   else {
+//     isCharging = false;
+//   }
+//   // Serial.print(chargingPinVolts);
+//   // Serial.print(", ");
+//   // Serial.print(chargingThresholdVolts);
+//   // Serial.print(", ");
+  
+// }
