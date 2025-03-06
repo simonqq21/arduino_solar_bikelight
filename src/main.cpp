@@ -18,8 +18,8 @@
 
 const int btn1Pin = 2;
 InterruptButton btn1(btn1Pin);
-const int lowLEDs2Pin = 4;
-const int lowLEDsPin = 5;
+const int lowLEDsPin = 4;
+const int lowLEDs2Pin = 5;
 const int highLEDsPin = 6;
 const int ldrPin = A0;
 const int batPin = A1;
@@ -40,6 +40,7 @@ unsigned int deadBatCountDown, lowBatCountDown;
  * charging LED is off when (not charging and off), and on when (the low LEDs are on or when charging)
  */
 byte curMode = 0;
+const int NUM_MODES = 7;
 byte savedMode;
 
 /** automatic mode  
@@ -52,13 +53,13 @@ bool autoMode = false;
 int chargingPinReading;
 double chargingPinVolts, batVolts;
 bool lowBattery, deadBattery;
-bool isCharging; 
+// bool isCharging; 
 bool isSleeping; 
 
 // update period for fading modes
 unsigned int updatePeriodinMillis = 5;
 // period length for flashing and fading modes
-const int totalPeriodLengthinMillis = 1000;
+int totalPeriodLengthinMillis = 1000;
 // keypoints per mode cycle 
 unsigned int keyPoints[4];
 // flashCycleTimer - used to keep time
@@ -66,11 +67,10 @@ unsigned long flashCycleTimer;
 unsigned long powerOnTime; 
 unsigned long lastTimeBtnDoubleClicked; 
 unsigned long lastTimeBtnClicked;
-unsigned long lastTimeChargingVoltsExceeded;
-const double chargingThresholdVolts = 4.0;
-const double deadBatVolts = 3.2;
-const double lowBatVolts = 3.78;
-// const double lowBatVolts = 4.8;
+// unsigned long lastTimeChargingVoltsExceeded;
+// const double chargingThresholdVolts = 4.0;
+const double deadBatVolts = 3.0;
+const double lowBatVolts = 3.6;
 const double hysteresisBatVolts = 0.1;
 
 /**
@@ -97,9 +97,9 @@ void btn1_1shortclick_func() {
   lastTimeBtnClicked = millis();
   // if auto mode is turned on and the light is charging, 
   // set current mode to saved mode.
-  if (autoMode && isCharging) {
-    curMode = savedMode;
-  }
+  // if (autoMode && isCharging) {
+  //   curMode = savedMode;
+  // }
   // if the battery voltage is lower than the defined low battery 
   // voltage plus a certain buffer value, it is considered battery low 
   // when the button is pressed.
@@ -116,14 +116,14 @@ void btn1_1shortclick_func() {
     curMode++;
   }
   // Cycle current mode to zero when it exceeds the last mode.
-  if (curMode > 5) {
+  if (curMode > NUM_MODES) {
     curMode = 0;
   }
   // if auto mode is turned on, 
   // set saved mode to current mode.
-  if (autoMode) {
-    savedMode = curMode;
-  }
+  // if (autoMode) {
+  //   savedMode = curMode;
+  // }
   if (debug) {
     Serial.print("curMode = ");
     Serial.println(curMode);
@@ -201,7 +201,7 @@ void checkBatVolts() {
     if (lowBatCountDown > 10) {
       lowBatCountDown = 0;
       lowBattery = true;
-    deadBattery = false;
+      deadBattery = false;
     }
   } 
   else {
@@ -247,52 +247,52 @@ Else if the light is not in autoMode {
 
 */
 
-void checkAutoMode() {
-  if (!deadBattery) {
-    if (autoMode) {
-      // Serial.print("curMode = ");
-      // Serial.print(curMode);
-      // Serial.print(", savedmode = ");
-      // Serial.print(savedMode);
-      // Serial.print(" ischarging=");
-      // Serial.print(isCharging);
-      // Serial.println();
-      if (isCharging) {
-        // Serial.print(chargingPinReading);
-        // Serial.print(", ");
-        // Serial.print(chargingPinVolts);
-        // Serial.print(", ");
-        // Serial.print(chargingThresholdVolts);
-        // Serial.print(", ");
-        // Serial.print("ischarging=");
-        // Serial.print(isCharging);
-        // Serial.println();
-        if (millis() - lastTimeBtnClicked > 4000) {
-          if (curMode) {
-            savedMode = curMode;
-            curMode = 0;
-          }
-        } 
-      } 
-      else {
-        if (curMode != savedMode && savedMode) {
-          curMode = savedMode;
-          btn1.begin(btn1_change_func);
-          // reset button temporarily to prevent double trigger
-          btn1.reset();
-        }
-      }
-    }
-  }
-  else {
-    // Serial.print("deadbattery=");
-    // Serial.print(deadBattery);
-    // Serial.print(", batvolts = ");
-    // Serial.print(batVolts);
-    // Serial.println();
-    savedMode = 0;
-  }
-}
+// void checkAutoMode() {
+//   if (!deadBattery) {
+//     if (autoMode) {
+//       // Serial.print("curMode = ");
+//       // Serial.print(curMode);
+//       // Serial.print(", savedmode = ");
+//       // Serial.print(savedMode);
+//       // Serial.print(" ischarging=");
+//       // Serial.print(isCharging);
+//       // Serial.println();
+//       // if (isCharging) {
+//         // Serial.print(chargingPinReading);
+//         // Serial.print(", ");
+//         // Serial.print(chargingPinVolts);
+//         // Serial.print(", ");
+//         // Serial.print(chargingThresholdVolts);
+//         // Serial.print(", ");
+//         // Serial.print("ischarging=");
+//         // Serial.print(isCharging);
+//         // Serial.println();
+//         if (millis() - lastTimeBtnClicked > 4000) {
+//           if (curMode) {
+//             savedMode = curMode;
+//             curMode = 0;
+//           }
+//         } 
+//       } 
+//       else {
+//         if (curMode != savedMode && savedMode) {
+//           curMode = savedMode;
+//           btn1.begin(btn1_change_func);
+//           // reset button temporarily to prevent double trigger
+//           btn1.reset();
+//         }
+//       }
+//     }
+//   }
+//   else {
+//     // Serial.print("deadbattery=");
+//     // Serial.print(deadBattery);
+//     // Serial.print(", batvolts = ");
+//     // Serial.print(batVolts);
+//     // Serial.println();
+//     savedMode = 0;
+//   }
+// }
 
 // ISR triggered by watchdog timer every 1 seconds during deep sleep,
 // before going back to sleep.
@@ -301,7 +301,7 @@ ISR (WDT_vect) {
   wdt_reset();
   checkBatVolts(); 
   // updateChargeLED();
-  checkAutoMode();
+  // checkAutoMode();
   checkBatVolts();
 }
 
@@ -354,6 +354,7 @@ void extendedLowMode() {
   highLEDs.off();
   lowLEDs.on();
   // 1 Hz, single 30% DC flash
+  totalPeriodLengthinMillis = 1000;
   updatePeriodinMillis = 100;
   keyPoints[0] = 0;
   keyPoints[1] = keyPoints[0] + 300/updatePeriodinMillis;
@@ -364,6 +365,37 @@ void extendedLowMode() {
       lowLEDs2.set(true);
     } else lowLEDs2.set(false);
     ctr1 = ctr1 > keyPoints[2] - 1? 0:ctr1 + 1;
+  }
+}
+
+/**
+ * mode 1 - Extended Low Mode 
+ * dim LEDs flashing, charging LED on, bright LEDs off
+ */
+void extendedLowMode2() {
+  highLEDs.off();
+  lowLEDs.on();
+  totalPeriodLengthinMillis = 1000;
+  updatePeriodinMillis = 5;
+  keyPoints[0] = 0;
+  keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
+  keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
+  keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
+  // 1 Hz fade; 400 mS rise, 400 mS fall, 200 mS off
+  // 5 ms fading steps
+  // 200 total steps; 0,80,160,200
+  if (millis() - flashCycleTimer >= updatePeriodinMillis) {
+    flashCycleTimer = millis();
+    if (ctr1 < keyPoints[1]) {
+      lowLEDs2.aSet(sin(0.5 * PI * (ctr1-keyPoints[0]) / (keyPoints[1] - keyPoints[0]))*255);
+    } 
+    else if (ctr1 >= keyPoints[1] && ctr1 < keyPoints[2]) {
+      lowLEDs2.aSet(sin(PI * (0.5 + 0.5 * (ctr1-keyPoints[1]) / (keyPoints[2] - keyPoints[1]))) * 255);
+    } 
+    else if (ctr1 >= keyPoints[2]) {
+      lowLEDs2.aSet(0);
+    }
+    ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1 + 1;
   }
 }
 
@@ -391,12 +423,14 @@ void highMode() {
  * dim LEDs on, charging LED on, bright LEDs flashing
  */
 void flashingMode() {
+  totalPeriodLengthinMillis = 1000;
   // 1 Hz, single 30% DC flash
   updatePeriodinMillis = 100;
   keyPoints[0] = 0;
   keyPoints[1] = keyPoints[0] + 300/updatePeriodinMillis;
   keyPoints[2] = totalPeriodLengthinMillis/updatePeriodinMillis;
   lowLEDs.on();
+  lowLEDs2.on();
   if (millis() - flashCycleTimer >= updatePeriodinMillis) {
     flashCycleTimer = millis();
     if (ctr1 < keyPoints[1]) {
@@ -412,6 +446,7 @@ void flashingMode() {
  * dim LEDs on, charging LED on, bright LEDs fading
  */
 void fadingMode() {
+  totalPeriodLengthinMillis = 1000;
   lowLEDs.on();
   updatePeriodinMillis = 5;
   keyPoints[0] = 0;
@@ -433,6 +468,25 @@ void fadingMode() {
       highLEDs.aSet(0);
     }
     ctr1 = ctr1 > keyPoints[3] - 1? 0:ctr1 + 1;
+  }
+}
+
+void dynamoFlash() {
+  totalPeriodLengthinMillis = 110;
+  // 1 Hz, single 30% DC flash
+  updatePeriodinMillis = 1;
+  keyPoints[0] = 0;
+  keyPoints[1] = keyPoints[0] + 43;
+  keyPoints[2] = totalPeriodLengthinMillis;
+  lowLEDs.on();
+  lowLEDs2.on();
+  if (millis() - flashCycleTimer >= updatePeriodinMillis) {
+    flashCycleTimer = millis();
+    if (ctr1 < keyPoints[1]) {
+      highLEDs.set(true);
+    } 
+    else highLEDs.set(false);
+    ctr1 = ctr1 > keyPoints[2] - 1? 0:ctr1 + 1;
   }
 }
 
@@ -461,25 +515,30 @@ void loop() {
       extendedLowMode();
       break;
     case 2:
-      lowMode();
+      extendedLowMode2();
       break;
     case 3:
-      highMode();
+      lowMode();
       break;
     case 4:
-      flashingMode();
+      highMode();
       break;
     case 5:
+      flashingMode();
+      break;
+    case 6:
       fadingMode();
+      break;
+    case 7:
+      dynamoFlash();
       break;
     default: 
       offMode();
   }
   checkBatVolts(); 
   // updateChargeLED();
-  checkAutoMode();
-  checkBatVolts(); 
-  
+  // checkAutoMode();
+
   if (debug) {
     if (millis() - lastTimePrinted > 10) {
       lastTimePrinted = millis();
