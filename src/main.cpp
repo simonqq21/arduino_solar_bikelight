@@ -21,7 +21,7 @@ InterruptButton btn1(btn1Pin);
 const int lowLEDs2Pin = 4;
 const int lowLEDsPin = 5;
 const int highLEDsPin = 6;
-// const int chargingPin = A0;
+const int ldrPin = A0;
 const int batPin = A1;
 LED lowLEDs(lowLEDsPin);
 LED lowLEDs2(lowLEDs2Pin);
