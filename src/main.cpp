@@ -71,9 +71,10 @@ LED lowLEDs2(lowLEDs2Pin);
 LED highLEDs(highLEDsPin);
 unsigned int deadBatCountDown, lowBatCountDown; 
 
-const int NUM_MODES = 7;
+const int NUM_LIGHT_MODES = 7;
+bool isOn = false;
 byte curLightMode = 0;
-byte curMMMode; // current mode memory mode 
+byte curMMMode = 0; // current mode memory mode 
 bool autoMode = false; 
 int chargingPinReading;
 double chargingPinVolts, batVolts;
@@ -135,19 +136,12 @@ void btn1_1shortclick_func() {
   // }
 
 
-  // if the battery is low and the current mode is greater than extended low mode, 
-  // set current mode to off mode.
-  if ((lowBattery && curLightMode >= 1) || deadBattery) {
-    curLightMode = 0;
-  }
-  // else, increment the current mode.
-  else {
-    curLightMode++;
-  }
 
-  // Cycle current mode to zero when it exceeds the last mode.
-  if (curLightMode > NUM_MODES) {
-    curLightMode = 0;
+
+  curLightMode++;
+  // Cycle current mode to the start when it exceeds the last mode.
+  if (curLightMode > NUM_LIGHT_MODES) {
+    curLightMode = 1;
   }
 
   // if auto mode is turned on, 
@@ -198,6 +192,7 @@ void btn1_2shortclick_func() {
 
 void btn1_1longclick_func() {
   Serial.println("1 long click");
+  isOn = !isOn;
 }
 
 // ISR for interrupt button library 
@@ -209,7 +204,7 @@ void btn1_change_func() {
 void wakeupISR() {
   ADCSRA |= 1 << ADEN;
   startSleepTimer(); 
-  btn1_1shortclick_func();
+  // btn1_1shortclick_func();
   btn1.begin(btn1_change_func);
   // reset button temporarily to prevent double trigger
   btn1.reset();
@@ -249,6 +244,14 @@ void checkBatVolts() {
   if (curLightMode > 1 && lowBattery) {
     curLightMode = 1;
   }
+
+  // if the battery is low and the current mode is greater than extended low mode, 
+  // set current mode to off mode.
+  if (deadBattery) {
+    curLightMode = 0;
+  }
+
+  // (lowBattery && curLightMode >= 1) || 
 }
 
 /**
@@ -348,38 +351,38 @@ void offMode() {
   lowLEDs.off();
   lowLEDs2.off();
   highLEDs.off();
-  if (millis() - powerOnTime > 3000) {
-    isSleeping = true;
-    // set interrupt to perform the watchdog ISR every four seconds then go back to sleep
-    // clear MCU Status Register
-    MCUSR = 0;
-    // set watchdog timer change enable and watchdog enable
-    WDTCSR = 1 << WDCE | 1 << WDE;
-    // set WDP3 to WDP0 to trigger watchdog interrupt every 4 seconds and 
-    // set WDIE enable watchdog interrupt
-    // WDTCSR = bit(WDIE) | 1 << WDP3 & ~bit (WDP2) & ~bit (WDP1) & ~bit (WDP0);
-    // WDTCSR = 1 << WDIE | 1 << WDP3 | 0 << WDP2 | 0 << WDP1 | 0 << WDP0;
-    WDTCSR = 1 << WDIE | 0 << WDP3 | 1 << WDP2 | 1 << WDP1 | 0 << WDP0;
+  // if (millis() - powerOnTime > 3000) {
+  //   isSleeping = true;
+  //   // set interrupt to perform the watchdog ISR every four seconds then go back to sleep
+  //   // clear MCU Status Register
+  //   MCUSR = 0;
+  //   // set watchdog timer change enable and watchdog enable
+  //   WDTCSR = 1 << WDCE | 1 << WDE;
+  //   // set WDP3 to WDP0 to trigger watchdog interrupt every 4 seconds and 
+  //   // set WDIE enable watchdog interrupt
+  //   // WDTCSR = bit(WDIE) | 1 << WDP3 & ~bit (WDP2) & ~bit (WDP1) & ~bit (WDP0);
+  //   // WDTCSR = 1 << WDIE | 1 << WDP3 | 0 << WDP2 | 0 << WDP1 | 0 << WDP0;
+  //   WDTCSR = 1 << WDIE | 0 << WDP3 | 1 << WDP2 | 1 << WDP1 | 0 << WDP0;
 
-    // sleep CPU until woken up by the button
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-    sleep_enable();
-    detachInterrupt(digitalPinToInterrupt(2));
-    attachInterrupt(digitalPinToInterrupt(2), wakeupISR, LOW);  
-    // sleep_mode(); 
-    // sei();
-    ADCSRA = 0;
-    // turn off brown-out enable in software
-    MCUCR = bit (BODS) | bit (BODSE);  // turn on brown-out enable select
-    MCUCR = bit (BODS);        // this must be done within 4 clock cycles of above
-    interrupts ();             // guarantees next instruction executed
+  //   // sleep CPU until woken up by the button
+  //   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  //   sleep_enable();
+  //   detachInterrupt(digitalPinToInterrupt(2));
+  //   attachInterrupt(digitalPinToInterrupt(2), wakeupISR, LOW);  
+  //   // sleep_mode(); 
+  //   // sei();
+  //   ADCSRA = 0;
+  //   // turn off brown-out enable in software
+  //   MCUCR = bit (BODS) | bit (BODSE);  // turn on brown-out enable select
+  //   MCUCR = bit (BODS);        // this must be done within 4 clock cycles of above
+  //   interrupts ();             // guarantees next instruction executed
 
-    sleep_cpu();
-    // sleep_disable();
-    // sei();
-    // detachInterrupt(digitalPinToInterrupt(2));
-    // btn1.begin(btn1_change_func);
-  }
+  //   sleep_cpu();
+  //   // sleep_disable();
+  //   // sei();
+  //   // detachInterrupt(digitalPinToInterrupt(2));
+  //   // btn1.begin(btn1_change_func);
+  // }
 }
 
 /**
@@ -451,6 +454,7 @@ void lowMode() {
  */
 void highMode() {
   lowLEDs.on();
+  lowLEDs2.on();
   highLEDs.on();
 }
 
@@ -483,12 +487,13 @@ void flashingMode() {
  */
 void fadingMode() {
   totalPeriodLengthinMillis = 1000;
-  lowLEDs.on();
   updatePeriodinMillis = 5;
   keyPoints[0] = 0;
   keyPoints[1] = keyPoints[0] + 400/updatePeriodinMillis;
   keyPoints[2] = keyPoints[1] + 400/updatePeriodinMillis;
   keyPoints[3] = keyPoints[2] + 200/updatePeriodinMillis;
+  lowLEDs.on();
+  lowLEDs2.on();
   // 1 Hz fade; 400 mS rise, 400 mS fall, 200 mS off
   // 5 ms fading steps
   // 200 total steps; 0,80,160,200
@@ -547,31 +552,35 @@ void loop() {
   lowLEDs2.loop();
   highLEDs.loop();
   
-  switch (curLightMode) {
-    case 1:
-      extendedLowMode();
-      break;
-    case 2:
-      extendedLowMode2();
-      break;
-    case 3:
-      lowMode();
-      break;
-    case 4:
-      highMode();
-      break;
-    case 5:
-      flashingMode();
-      break;
-    case 6:
-      fadingMode();
-      break;
-    case 7:
-      dynamoFlash();
-      break;
-    default: 
-      offMode();
+  if (isOn) {
+    switch (curLightMode) {
+      case 2:
+        extendedLowMode2();
+        break;
+      case 3:
+        lowMode();
+        break;
+      case 4:
+        highMode();
+        break;
+      case 5:
+        flashingMode();
+        break;
+      case 6:
+        fadingMode();
+        break;
+      case 7:
+        dynamoFlash();
+        break;
+      default: 
+        curLightMode = 1;
+        extendedLowMode();
+    }
   }
+  else {
+    offMode();
+  }
+  
   checkBatVolts(); 
   // updateChargeLED();
   // checkAutoMode();

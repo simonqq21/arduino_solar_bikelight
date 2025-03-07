@@ -52,7 +52,7 @@ void InterruptButton::loop() {
         /**
          * when pressed, increment the btn click count if within the multiclick delay.
          */
-        if (!_curState && millis() - _lastClickTime > 200) {
+        if (!_curState) {
             // Serial.print("btn pressed ");
             // Serial.println(millis() - _lastClickTime);
             _lastClickTime = millis();
@@ -68,12 +68,13 @@ void InterruptButton::loop() {
     if (_numClicks) {
         if (millis() - _lastClickTime > MULTICLICK_DURATION) {
             if (digitalRead(_pin)) {
-                // Serial.print("button clicked ");
-                // Serial.print(_numClicks);
-                // Serial.println(" times.");
+                Serial.print("button clicked ");
+                Serial.print(_numClicks);
+                Serial.println(" times.");
                 switch (_numClicks) {
                     case 1: 
                         if (_1ShortPressFunc != NULL) {
+                            Serial.println("010");
                             _1ShortPressFunc();
                             break;
                         }             
@@ -92,9 +93,9 @@ void InterruptButton::loop() {
         }
         if (millis() - _lastClickTime > LONGCLICK_DURATION) {
             if (!digitalRead(_pin)) {
-                // Serial.print("button long clicked ");
-                // Serial.print(_numClicks);
-                // Serial.println(" times.");
+                Serial.print("button long clicked ");
+                Serial.print(_numClicks);
+                Serial.println(" times.");
                 switch (_numClicks) {
                     case 1: 
                         if (_1LongPressFunc != NULL) {
