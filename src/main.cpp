@@ -16,6 +16,49 @@
  * charging LED - 1 dim red LED (identical to low LEDs, also used for rear light)
  */
 
+/**
+  * 1 short press - cycle through modes 
+  * 2 short press - cycle through mode memory, then at the end of each cycle, toggle the auto mode that uses the LDR to detect light. 
+  * 1 long press - switch the light on or off 
+  * 
+  * Lighting modes: 
+  * 0 - off - low LEDs 1 off, low LEDs 2 off, high LEDs off
+  * 1 - extended low - low LEDs 1 on, low LEDs 2 flashing, high LEDs off
+  * 2 - extended low 2 - low LEDs 1 on, low LEDs 2 fading, high LEDs off
+  * 3 - low - low LEDs 1 on, low LEDs 2 on, high LEDs off
+  * 4 - high - low LEDs 1 on, low LEDs 2 on, high LEDs on
+  * 5 - flashing - low LEDs 1 on, low LEDs 2 on, high LEDs flashing
+  * 6 - fading - low LEDs 1 on, low LEDs 2 on, high LEDs fading
+  * 7 - dynamo flash - low LEDs 1 on, low LEDs 2 on, high LEDs rapid flashing
+ * 
+  * Mode memory modes: 
+  * 1 - no mode memory - when connected to battery, light is off and long press starts the light in 
+  *   the first mode in the sequence.
+  * 2 - mode memory - when connected to battery, light is off and long press starts the light in 
+  *   the last memorized mode.
+  * 3 - mode memory and auto-on - when connected to battery, light is on at the last memorized mode.
+  * 
+  * Light sensing auto mode pseudocode 
+  If Light sensing auto mode {
+    If bike light is on {
+      if LDR bright {
+        switch bike light to extended low mode;
+      } else if LDR dark {
+        switch bike light to saved mode;
+      }
+    }
+    else if bike light is off {
+      switch bike light to off;
+    }
+  }
+  else if not Light sensing auto mode {
+    no change;
+  }
+ *
+ *
+ * 
+ * 
+*/
 const int btn1Pin = 2;
 InterruptButton btn1(btn1Pin);
 const int lowLEDsPin = 4;
@@ -28,27 +71,9 @@ LED lowLEDs2(lowLEDs2Pin);
 LED highLEDs(highLEDsPin);
 unsigned int deadBatCountDown, lowBatCountDown; 
 
-/**
- * Modes: 
- * 0 - off - all LEDs off
- * 1 - extended low - low LEDs off, charging LEDs on, high LEDs flashing
- * 2 - low - low LEDs on, charging LEDs on, high LEDs off
- * 3 - high - low LEDs on, charging LEDs on, high LEDs on
- * 4 - flashing - low LEDs on, charging LEDs on, high LEDs flashing
- * 5 - fading - low LEDs on, charging LEDs on, high LEDs fading
- * 6 - charging(either via USB port or solar panel) - low LEDs off, charging LEDs on, high LEDs off
- * charging LED is off when (not charging and off), and on when (the low LEDs are on or when charging)
- */
-byte curMode = 0;
 const int NUM_MODES = 7;
-byte savedMode;
-
-/** automatic mode  
- * If true, the light will turn off when it is being charged (either via solar or USB) and turn on 
- *  when charging stops. This makes the light turn off in bright light and turn on in the dark.
- * If false, the light will remain turned on regardless if it is being charged or not until the user 
- *  turns it off.
- * */ 
+byte curLightMode = 0;
+byte curMMMode; // current mode memory mode 
 bool autoMode = false; 
 int chargingPinReading;
 double chargingPinVolts, batVolts;
@@ -92,41 +117,47 @@ void startSleepTimer() {
  * single click - switch and cycle through modes
  */
 void btn1_1shortclick_func() {
+  Serial.println("1 short click");
   // restart sleep timer
   startSleepTimer();
   lastTimeBtnClicked = millis();
   // if auto mode is turned on and the light is charging, 
   // set current mode to saved mode.
   // if (autoMode && isCharging) {
-  //   curMode = savedMode;
+  //   curLightMode = savedMode;
   // }
-  // if the battery voltage is lower than the defined low battery 
-  // voltage plus a certain buffer value, it is considered battery low 
-  // when the button is pressed.
-  if (batVolts < lowBatVolts + hysteresisBatVolts) {
-    lowBattery = true;
-  }
+
+  // // if the battery voltage is lower than the defined low battery 
+  // // voltage plus a certain buffer value, it is considered battery low 
+  // // when the button is pressed.
+  // if (batVolts < lowBatVolts + hysteresisBatVolts) {
+  //   lowBattery = true;
+  // }
+
+
   // if the battery is low and the current mode is greater than extended low mode, 
   // set current mode to off mode.
-  if ((lowBattery && curMode >= 1) || deadBattery) {
-    curMode = 0;
+  if ((lowBattery && curLightMode >= 1) || deadBattery) {
+    curLightMode = 0;
   }
   // else, increment the current mode.
   else {
-    curMode++;
+    curLightMode++;
   }
+
   // Cycle current mode to zero when it exceeds the last mode.
-  if (curMode > NUM_MODES) {
-    curMode = 0;
+  if (curLightMode > NUM_MODES) {
+    curLightMode = 0;
   }
+
   // if auto mode is turned on, 
   // set saved mode to current mode.
   // if (autoMode) {
-  //   savedMode = curMode;
+  //   savedMode = curLightMode;
   // }
   if (debug) {
-    Serial.print("curMode = ");
-    Serial.println(curMode);
+    Serial.print("curLightMode = ");
+    Serial.println(curLightMode);
   }
   // reset watchdog timer
   wdt_reset();
@@ -136,6 +167,7 @@ void btn1_1shortclick_func() {
  * double click - toggle autoMode
  */
 void btn1_2shortclick_func() {
+  Serial.println("2 short click");
   lastTimeBtnDoubleClicked = millis();
   lastTimeBtnClicked = millis();
   startSleepTimer();
@@ -156,12 +188,16 @@ void btn1_2shortclick_func() {
     Serial.print("autoMode=");
     Serial.println(autoMode);
     Serial.print("mode=");
-    Serial.print(curMode);
+    Serial.print(curLightMode);
     Serial.println(); 
   }
   // reset watchdog timer
   wdt_reset();
   
+}
+
+void btn1_1longclick_func() {
+  Serial.println("1 long click");
 }
 
 // ISR for interrupt button library 
@@ -189,7 +225,7 @@ void checkBatVolts() {
     lowBatCountDown = 0;
     if (deadBatCountDown > 10) {
       deadBatCountDown = 0;
-      curMode = 0;
+      curLightMode = 0;
       lowBattery = true;
       deadBattery = true;
     }
@@ -210,8 +246,8 @@ void checkBatVolts() {
     lowBattery = false;
     deadBattery = false;
   }
-  if (curMode > 1 && lowBattery) {
-    curMode = 1;
+  if (curLightMode > 1 && lowBattery) {
+    curLightMode = 1;
   }
 }
 
@@ -250,8 +286,8 @@ Else if the light is not in autoMode {
 // void checkAutoMode() {
 //   if (!deadBattery) {
 //     if (autoMode) {
-//       // Serial.print("curMode = ");
-//       // Serial.print(curMode);
+//       // Serial.print("curLightMode = ");
+//       // Serial.print(curLightMode);
 //       // Serial.print(", savedmode = ");
 //       // Serial.print(savedMode);
 //       // Serial.print(" ischarging=");
@@ -268,15 +304,15 @@ Else if the light is not in autoMode {
 //         // Serial.print(isCharging);
 //         // Serial.println();
 //         if (millis() - lastTimeBtnClicked > 4000) {
-//           if (curMode) {
-//             savedMode = curMode;
-//             curMode = 0;
+//           if (curLightMode) {
+//             savedMode = curLightMode;
+//             curLightMode = 0;
 //           }
 //         } 
 //       } 
 //       else {
-//         if (curMode != savedMode && savedMode) {
-//           curMode = savedMode;
+//         if (curLightMode != savedMode && savedMode) {
+//           curLightMode = savedMode;
 //           btn1.begin(btn1_change_func);
 //           // reset button temporarily to prevent double trigger
 //           btn1.reset();
@@ -498,6 +534,7 @@ void setup() {
   btn1.begin(btn1_change_func);
   btn1.set1ShortPressFunc(btn1_1shortclick_func);
   btn1.set2ShortPressFunc(btn1_2shortclick_func);
+  btn1.set1LongPressFunc(btn1_1longclick_func);
   lowLEDs.begin();
   lowLEDs2.begin();
   highLEDs.begin();
@@ -510,7 +547,7 @@ void loop() {
   lowLEDs2.loop();
   highLEDs.loop();
   
-  switch (curMode) {
+  switch (curLightMode) {
     case 1:
       extendedLowMode();
       break;
@@ -551,7 +588,7 @@ void loop() {
       // Serial.print("ischarging=");
       // Serial.print(isCharging);
       // Serial.print("mode=");
-      // Serial.print(curMode);
+      // Serial.print(curLightMode);
       // Serial.println(); 
     }
   }
@@ -591,7 +628,7 @@ void loop() {
 //   }
 //   chargingPinReading = analogRead(chargingPin);
 //   chargingPinVolts = chargingPinReading*1.1/1023.0*6;
-//   if (chargingPinVolts > chargingThresholdVolts || curMode > 0) { 
+//   if (chargingPinVolts > chargingThresholdVolts || curLightMode > 0) { 
 //     chargingLEDs.on();
 //   } else {
 //     chargingLEDs.off();
