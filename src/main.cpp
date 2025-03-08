@@ -10,6 +10,13 @@
 #include <avr/wdt.h> 
 #include <EEPROM.h> 
 
+bool isOn = false;
+struct Config {
+  byte curLightMode;
+  byte curMMMode; // current mode memory mode 
+  bool autoMode; 
+};
+
 /**
  * low LEDs - 7 dim red LEDs 
  * high LEDs - 4 bright red LEDs 
@@ -72,10 +79,11 @@ LED highLEDs(highLEDsPin);
 unsigned int deadBatCountDown, lowBatCountDown; 
 
 const int NUM_LIGHT_MODES = 7;
-bool isOn = false;
-byte curLightMode = 0;
-byte curMMMode = 0; // current mode memory mode 
-bool autoMode = false; 
+// bool isOn = false;
+// byte config.curLightMode = 0;
+// byte config.curMMMode = 0; // current mode memory mode 
+// bool config.autoMode = false; 
+Config config;
 int chargingPinReading;
 double chargingPinVolts, batVolts;
 bool lowBattery, deadBattery;
@@ -91,8 +99,11 @@ unsigned int keyPoints[4];
 // flashCycleTimer - used to keep time
 unsigned long flashCycleTimer;
 unsigned long powerOnTime; 
-unsigned long lastTimeBtnDoubleClicked; 
-unsigned long lastTimeBtnClicked;
+// unsigned long lastTimeBtnDoubleClicked; 
+// unsigned long lastTimeBtnClicked;
+unsigned long lastTimeValuesChanged;
+bool configSaved;
+
 // unsigned long lastTimeChargingVoltsExceeded;
 // const double chargingThresholdVolts = 4.0;
 const double deadBatVolts = 3.0;
@@ -114,18 +125,30 @@ void startSleepTimer() {
   isSleeping = false;
 }
 
+void saveConfig() {
+  EEPROM.put(20, config);
+  Serial.println("config saved");
+}
+
+void loadConfig() {
+  EEPROM.get(20, config);
+  Serial.println("config loaded");
+}
+
 /**
  * single click - switch and cycle through modes
  */
 void btn1_1shortclick_func() {
   Serial.println("1 short click");
+  lastTimeValuesChanged = millis();
+  configSaved = false;
   // restart sleep timer
   startSleepTimer();
-  lastTimeBtnClicked = millis();
+  // lastTimeBtnClicked = millis();
   // if auto mode is turned on and the light is charging, 
   // set current mode to saved mode.
-  // if (autoMode && isCharging) {
-  //   curLightMode = savedMode;
+  // if (config.autoMode && isCharging) {
+  //   config.curLightMode = savedMode;
   // }
 
   // // if the battery voltage is lower than the defined low battery 
@@ -138,36 +161,38 @@ void btn1_1shortclick_func() {
 
 
 
-  curLightMode++;
+  config.curLightMode++;
   // Cycle current mode to the start when it exceeds the last mode.
-  if (curLightMode > NUM_LIGHT_MODES) {
-    curLightMode = 1;
+  if (config.curLightMode > NUM_LIGHT_MODES) {
+    config.curLightMode = 1;
   }
 
   // if auto mode is turned on, 
   // set saved mode to current mode.
-  // if (autoMode) {
-  //   savedMode = curLightMode;
+  // if (config.autoMode) {
+  //   savedMode = config.curLightMode;
   // }
   if (debug) {
-    Serial.print("curLightMode = ");
-    Serial.println(curLightMode);
+    Serial.print("config.curLightMode = ");
+    Serial.println(config.curLightMode);
   }
   // reset watchdog timer
   wdt_reset();
 }
 
 /**
- * double click - toggle autoMode
+ * double click - toggle config.autoMode
  */
 void btn1_2shortclick_func() {
   Serial.println("2 short click");
-  lastTimeBtnDoubleClicked = millis();
-  lastTimeBtnClicked = millis();
+  lastTimeValuesChanged = millis();
+  configSaved = false;
+  // lastTimeBtnDoubleClicked = millis();
+  // lastTimeBtnClicked = millis();
   startSleepTimer();
-  autoMode = !autoMode; 
+  config.autoMode = !config.autoMode; 
   lowLEDs2.setLoopUnitDuration(200);
-  if (autoMode) {
+  if (config.autoMode) {
     bool loopSeq[] = {0,1,0,1,0};
     lowLEDs2.startTimer(1000, true);
     lowLEDs2.setLoopSequence(loopSeq, 5);
@@ -179,10 +204,10 @@ void btn1_2shortclick_func() {
     lowLEDs2.startLoop();
   }
   if (debug) {
-    Serial.print("autoMode=");
-    Serial.println(autoMode);
+    Serial.print("config.autoMode=");
+    Serial.println(config.autoMode);
     Serial.print("mode=");
-    Serial.print(curLightMode);
+    Serial.print(config.curLightMode);
     Serial.println(); 
   }
   // reset watchdog timer
@@ -192,6 +217,8 @@ void btn1_2shortclick_func() {
 
 void btn1_1longclick_func() {
   Serial.println("1 long click");
+  // lastTimeValuesChanged = millis();
+  // configSaved = false;
   isOn = !isOn;
 }
 
@@ -210,7 +237,12 @@ void wakeupISR() {
   btn1.reset();
 }
 
-
+void autosaveConfig() {
+  if (millis() - lastTimeValuesChanged > 10000 && !configSaved) {
+    saveConfig();
+    configSaved = true;
+  }
+}
 
 void checkBatVolts() {
   batVolts = analogRead(batPin)*1.1/1023.0*6;
@@ -220,7 +252,7 @@ void checkBatVolts() {
     lowBatCountDown = 0;
     if (deadBatCountDown > 10) {
       deadBatCountDown = 0;
-      curLightMode = 0;
+      config.curLightMode = 0;
       lowBattery = true;
       deadBattery = true;
     }
@@ -241,22 +273,22 @@ void checkBatVolts() {
     lowBattery = false;
     deadBattery = false;
   }
-  if (curLightMode > 1 && lowBattery) {
-    curLightMode = 1;
+  if (config.curLightMode > 1 && lowBattery) {
+    config.curLightMode = 1;
   }
 
   // if the battery is low and the current mode is greater than extended low mode, 
   // set current mode to off mode.
   if (deadBattery) {
-    curLightMode = 0;
+    config.curLightMode = 0;
   }
 
-  // (lowBattery && curLightMode >= 1) || 
+  // (lowBattery && config.curLightMode >= 1) || 
 }
 
 /**
 
-If the light is in autoMode {
+If the light is in config.autoMode {
   If the light is charging {
     If the saved mode is different from the current mode {
       Save the current mode 
@@ -266,7 +298,7 @@ If the light is in autoMode {
       Set current mode to the saved mode
       Increment the current mode in a cycle 
       Start a timer lightsTimer that keeps the lights on five seconds 
-        before it turns off due to autoMode and charging.
+        before it turns off due to config.autoMode and charging.
       When that timer exceeds 5 seconds {
         Save the current mode 
         Set current mode to zero
@@ -277,7 +309,7 @@ If the light is in autoMode {
     Resume the saved mode
   }
 }
-Else if the light is not in autoMode {
+Else if the light is not in config.autoMode {
   Maintain the current mode 
   If the saved mode is nonzero and the current mode is zero {
     Resume the saved mode
@@ -288,9 +320,9 @@ Else if the light is not in autoMode {
 
 // void checkAutoMode() {
 //   if (!deadBattery) {
-//     if (autoMode) {
-//       // Serial.print("curLightMode = ");
-//       // Serial.print(curLightMode);
+//     if (config.autoMode) {
+//       // Serial.print("config.curLightMode = ");
+//       // Serial.print(config.curLightMode);
 //       // Serial.print(", savedmode = ");
 //       // Serial.print(savedMode);
 //       // Serial.print(" ischarging=");
@@ -307,15 +339,15 @@ Else if the light is not in autoMode {
 //         // Serial.print(isCharging);
 //         // Serial.println();
 //         if (millis() - lastTimeBtnClicked > 4000) {
-//           if (curLightMode) {
-//             savedMode = curLightMode;
-//             curLightMode = 0;
+//           if (config.curLightMode) {
+//             savedMode = config.curLightMode;
+//             config.curLightMode = 0;
 //           }
 //         } 
 //       } 
 //       else {
-//         if (curLightMode != savedMode && savedMode) {
-//           curLightMode = savedMode;
+//         if (config.curLightMode != savedMode && savedMode) {
+//           config.curLightMode = savedMode;
 //           btn1.begin(btn1_change_func);
 //           // reset button temporarily to prevent double trigger
 //           btn1.reset();
@@ -543,7 +575,8 @@ void setup() {
   lowLEDs.begin();
   lowLEDs2.begin();
   highLEDs.begin();
-  analogReference(INTERNAL);
+  analogReference(INTERNAL); 
+  loadConfig();
 }
 
 void loop() {
@@ -553,7 +586,7 @@ void loop() {
   highLEDs.loop();
   
   if (isOn) {
-    switch (curLightMode) {
+    switch (config.curLightMode) {
       case 2:
         extendedLowMode2();
         break;
@@ -573,7 +606,7 @@ void loop() {
         dynamoFlash();
         break;
       default: 
-        curLightMode = 1;
+        config.curLightMode = 1;
         extendedLowMode();
     }
   }
@@ -597,7 +630,7 @@ void loop() {
       // Serial.print("ischarging=");
       // Serial.print(isCharging);
       // Serial.print("mode=");
-      // Serial.print(curLightMode);
+      // Serial.print(config.curLightMode);
       // Serial.println(); 
     }
   }
@@ -637,7 +670,7 @@ void loop() {
 //   }
 //   chargingPinReading = analogRead(chargingPin);
 //   chargingPinVolts = chargingPinReading*1.1/1023.0*6;
-//   if (chargingPinVolts > chargingThresholdVolts || curLightMode > 0) { 
+//   if (chargingPinVolts > chargingThresholdVolts || config.curLightMode > 0) { 
 //     chargingLEDs.on();
 //   } else {
 //     chargingLEDs.off();
