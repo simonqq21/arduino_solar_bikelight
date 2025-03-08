@@ -10,6 +10,20 @@
 #include <avr/wdt.h> 
 #include <EEPROM.h> 
 
+#define EXTENDED_LOW_MODE 1 
+#define EXTENDED_LOW_MODE_2 2 
+#define LOW_MODE 3
+#define HIGH_MODE 4
+#define HIGH_FLASHING_MODE 5 
+#define HIGH_FADING_MODE 6 
+#define DYNAMO_FLASH_MODE 7
+#define OFF_MODE 0 
+
+#define NO_MODE_MEMORY 1 
+#define MODE_MEMORY 2 
+#define MODE_MEMORY_AUTO_ON 3
+
+
 bool isOn = false;
 struct Config {
   byte curLightMode;
@@ -132,6 +146,24 @@ void saveConfig() {
 
 void loadConfig() {
   EEPROM.get(20, config);
+  // validate config values 
+  if (config.curLightMode < 1 || config.curLightMode > NUM_LIGHT_MODES)
+    config.curLightMode = 1; 
+  if (config.curMMMode < 1 || config.curMMMode > 3)
+    config.curMMMode = 1;
+  // switch behavior based on the mode memory mode
+  switch (config.curMMMode) {
+    case NO_MODE_MEMORY:
+      isOn = false;
+      config.curLightMode = 1;
+      break; 
+    case MODE_MEMORY:
+      isOn = false;
+      break; 
+    case MODE_MEMORY_AUTO_ON: 
+      isOn = true;
+      break;
+  }
   Serial.println("config loaded");
 }
 
@@ -157,10 +189,6 @@ void btn1_1shortclick_func() {
   // if (batVolts < lowBatVolts + hysteresisBatVolts) {
   //   lowBattery = true;
   // }
-
-
-
-
   config.curLightMode++;
   // Cycle current mode to the start when it exceeds the last mode.
   if (config.curLightMode > NUM_LIGHT_MODES) {
@@ -190,25 +218,36 @@ void btn1_2shortclick_func() {
   // lastTimeBtnDoubleClicked = millis();
   // lastTimeBtnClicked = millis();
   startSleepTimer();
-  config.autoMode = !config.autoMode; 
-  lowLEDs2.setLoopUnitDuration(200);
-  if (config.autoMode) {
-    bool loopSeq[] = {0,1,0,1,0};
-    lowLEDs2.startTimer(1000, true);
-    lowLEDs2.setLoopSequence(loopSeq, 5);
-    lowLEDs2.startLoop();
-  } else {
-    bool loopSeq[] = {0,1,0,0,0};
-    lowLEDs2.startTimer(1000, true);
-    lowLEDs2.setLoopSequence(loopSeq, 5);
-    lowLEDs2.startLoop();
+
+  config.curMMMode++;
+  if (config.curMMMode > 3) {
+    // config.autoMode = !config.autoMode; 
+    config.curMMMode = 1;
   }
+
+  // lowLEDs2.setLoopUnitDuration(200);
+  // if (config.autoMode) {
+  //   bool loopSeq[] = {0,1,0,1,0};
+  //   lowLEDs2.startTimer(1000, true);
+  //   lowLEDs2.setLoopSequence(loopSeq, 5);
+  //   lowLEDs2.startLoop();
+  // } else {
+  //   bool loopSeq[] = {0,1,0,0,0};
+  //   lowLEDs2.startTimer(1000, true);
+  //   lowLEDs2.setLoopSequence(loopSeq, 5);
+  //   lowLEDs2.startLoop();
+  // }
   if (debug) {
-    Serial.print("config.autoMode=");
-    Serial.println(config.autoMode);
-    Serial.print("mode=");
-    Serial.print(config.curLightMode);
-    Serial.println(); 
+    Serial.print("config.curMMMode=");
+    Serial.println(config.curMMMode);
+    // Serial.print("mode=");
+    // Serial.print(config.curLightMode);
+    // Serial.println(); 
+    // Serial.print("config.autoMode=");
+    // Serial.println(config.autoMode);
+    // Serial.print("mode=");
+    // Serial.print(config.curLightMode);
+    // Serial.println(); 
   }
   // reset watchdog timer
   wdt_reset();
@@ -240,6 +279,7 @@ void wakeupISR() {
 void autosaveConfig() {
   if (millis() - lastTimeValuesChanged > 10000 && !configSaved) {
     saveConfig();
+    Serial.println("saved eeprom config");
     configSaved = true;
   }
 }
@@ -585,28 +625,29 @@ void loop() {
   lowLEDs2.loop();
   highLEDs.loop();
   
+
   if (isOn) {
     switch (config.curLightMode) {
-      case 2:
+      case EXTENDED_LOW_MODE_2:
         extendedLowMode2();
         break;
-      case 3:
+      case LOW_MODE:
         lowMode();
         break;
-      case 4:
+      case HIGH_MODE:
         highMode();
         break;
-      case 5:
+      case HIGH_FLASHING_MODE:
         flashingMode();
         break;
-      case 6:
+      case HIGH_FADING_MODE:
         fadingMode();
         break;
-      case 7:
+      case DYNAMO_FLASH_MODE:
         dynamoFlash();
         break;
       default: 
-        config.curLightMode = 1;
+        config.curLightMode = EXTENDED_LOW_MODE;
         extendedLowMode();
     }
   }
@@ -634,7 +675,7 @@ void loop() {
       // Serial.println(); 
     }
   }
-  
+  autosaveConfig();
 }
 
 
