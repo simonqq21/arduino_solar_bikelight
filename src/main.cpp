@@ -93,10 +93,10 @@ LED lowLEDs2(lowLEDs2Pin);
 LED highLEDs(highLEDsPin);
 unsigned int deadBatCountDown, lowBatCountDown; 
 
-int sequence[10];
+bool sequence[10];
 int sequenceLen = 0;
 int curSequencePos = 0;
-unsigned int lt1;
+unsigned long lt1;
 
 const int NUM_LIGHT_MODES = 7;
 // bool isOn = false;
