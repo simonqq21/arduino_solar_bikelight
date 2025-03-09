@@ -25,6 +25,7 @@
 
 
 bool isOn = false;
+bool indicating = false;
 struct Config {
   byte curLightMode;
   byte curMMMode; // current mode memory mode 
@@ -91,6 +92,11 @@ LED lowLEDs(lowLEDsPin);
 LED lowLEDs2(lowLEDs2Pin);
 LED highLEDs(highLEDsPin);
 unsigned int deadBatCountDown, lowBatCountDown; 
+
+int sequence[10];
+int sequenceLen = 0;
+int curSequencePos = 0;
+unsigned int lt1;
 
 const int NUM_LIGHT_MODES = 7;
 // bool isOn = false;
@@ -167,6 +173,31 @@ void loadConfig() {
   Serial.println("config loaded");
 }
 
+void offAllLEDs() {
+  lowLEDs.off();
+  lowLEDs2.off();
+  highLEDs.off();
+}
+
+void generateLEDIndication(int num) {
+  curSequencePos = 0;
+  sequenceLen = 10;
+  for (int i=0;i<sequenceLen;i++) {
+    sequence[i] = 0;
+  }
+  for (int i=0;i<num;i++) {
+    sequence[i*2] = 1;
+  }
+}
+
+void indicateLED() {
+  indicating = true; 
+  lt1 = millis();
+  offAllLEDs();
+}
+
+
+
 /**
  * single click - switch and cycle through modes
  */
@@ -224,6 +255,9 @@ void btn1_2shortclick_func() {
     // config.autoMode = !config.autoMode; 
     config.curMMMode = 1;
   }
+  generateLEDIndication(config.curMMMode);
+  indicateLED();
+
 
   // lowLEDs2.setLoopUnitDuration(200);
   // if (config.autoMode) {
@@ -420,9 +454,7 @@ ISR (WDT_vect) {
  * mode 0 - Off Mode
  */
 void offMode() {
-  lowLEDs.off();
-  lowLEDs2.off();
-  highLEDs.off();
+  offAllLEDs();
   // if (millis() - powerOnTime > 3000) {
   //   isSleeping = true;
   //   // set interrupt to perform the watchdog ISR every four seconds then go back to sleep
@@ -603,6 +635,19 @@ void dynamoFlash() {
   }
 }
 
+void indicateLEDLoop() {
+  if (indicating) {
+    if (millis() - lt1 > 100) {
+      lt1 = millis(); 
+      lowLEDs.set(sequence[curSequencePos]);
+      curSequencePos++; 
+      if (curSequencePos > sequenceLen - 1) {
+        indicating = false;
+      }
+    }
+  }
+}
+
 void setup() {
   wdt_reset();
   wdt_disable();
@@ -625,8 +670,8 @@ void loop() {
   lowLEDs2.loop();
   highLEDs.loop();
   
-
-  if (isOn) {
+  indicateLEDLoop();
+  if (isOn && !indicating) {
     switch (config.curLightMode) {
       case EXTENDED_LOW_MODE_2:
         extendedLowMode2();
@@ -651,7 +696,7 @@ void loop() {
         extendedLowMode();
     }
   }
-  else {
+  else if (!isOn) {
     offMode();
   }
   
