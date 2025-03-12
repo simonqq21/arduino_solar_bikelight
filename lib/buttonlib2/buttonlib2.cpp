@@ -37,18 +37,22 @@ void InterruptButton::set3LongPressFunc(void (*func)()) {
     _3LongPressFunc = func;
 }
 
+bool InterruptButton::getState() {
+    return _curState;
+}
+
 void InterruptButton::reset() {
     _lastClickTime = millis();
 }
 
 void InterruptButton::loop() {
+    _curState = digitalRead(_pin);
     if (_changed) {
         _lastDebounceTime = millis();
         _changed = false;
         _dbTimerStarted = true;
     }
     if (_dbTimerStarted && millis() - _lastDebounceTime > DEBOUNCE_DELAY) {
-        _curState = digitalRead(_pin);
         /**
          * when pressed, increment the btn click count if within the multiclick delay.
          */
@@ -74,7 +78,6 @@ void InterruptButton::loop() {
                 switch (_numClicks) {
                     case 1: 
                         if (_1ShortPressFunc != NULL) {
-                            Serial.println("010");
                             _1ShortPressFunc();
                             break;
                         }             

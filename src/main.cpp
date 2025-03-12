@@ -104,11 +104,12 @@ const int NUM_LIGHT_MODES = 7;
 // byte config.curMMMode = 0; // current mode memory mode 
 // bool config.autoMode = false; 
 Config config;
+Config savedConfig;
 int chargingPinReading;
 double chargingPinVolts, batVolts;
 bool lowBattery, deadBattery;
 // bool isCharging; 
-bool isSleeping; 
+// bool isSleeping; 
 
 // update period for fading modes
 unsigned int updatePeriodinMillis = 5;
@@ -118,11 +119,13 @@ int totalPeriodLengthinMillis = 1000;
 unsigned int keyPoints[4];
 // flashCycleTimer - used to keep time
 unsigned long flashCycleTimer;
-unsigned long powerOnTime; 
-// unsigned long lastTimeBtnDoubleClicked; 
-// unsigned long lastTimeBtnClicked;
+unsigned long lastTimeWoken; 
+unsigned int longPressTime;
+unsigned long lastTimeBtnPressed;
+unsigned long lastTimeLongPressChecked;
 unsigned long lastTimeValuesChanged;
 bool configSaved;
+bool wokenUp;
 
 // unsigned long lastTimeChargingVoltsExceeded;
 // const double chargingThresholdVolts = 4.0;
@@ -140,9 +143,11 @@ unsigned int ctr1;
 unsigned long lastTimePrinted = 0;
 const bool debug = true;
 
-void startSleepTimer() {
-  powerOnTime = millis();
-  isSleeping = false;
+void startWakeUpTimer() {
+  lastTimeWoken = millis();
+  lastTimeLongPressChecked = millis();
+  lastTimeBtnPressed = millis();
+  longPressTime = 0;
 }
 
 void saveConfig() {
@@ -171,151 +176,6 @@ void loadConfig() {
       break;
   }
   Serial.println("config loaded");
-}
-
-void offAllLEDs() {
-  lowLEDs.off();
-  lowLEDs2.off();
-  highLEDs.off();
-}
-
-void generateLEDIndication(int num) {
-  curSequencePos = 0;
-  sequenceLen = 10;
-  for (int i=0;i<sequenceLen;i++) {
-    sequence[i] = 0;
-  }
-  for (int i=0;i<num;i++) {
-    sequence[i*2] = 1;
-  }
-}
-
-void indicateLED() {
-  indicating = true; 
-  lt1 = millis();
-  offAllLEDs();
-}
-
-
-
-/**
- * single click - switch and cycle through modes
- */
-void btn1_1shortclick_func() {
-  Serial.println("1 short click");
-  lastTimeValuesChanged = millis();
-  configSaved = false;
-  // restart sleep timer
-  startSleepTimer();
-  // lastTimeBtnClicked = millis();
-  // if auto mode is turned on and the light is charging, 
-  // set current mode to saved mode.
-  // if (config.autoMode && isCharging) {
-  //   config.curLightMode = savedMode;
-  // }
-
-  // // if the battery voltage is lower than the defined low battery 
-  // // voltage plus a certain buffer value, it is considered battery low 
-  // // when the button is pressed.
-  // if (batVolts < lowBatVolts + hysteresisBatVolts) {
-  //   lowBattery = true;
-  // }
-  config.curLightMode++;
-  // Cycle current mode to the start when it exceeds the last mode.
-  if (config.curLightMode > NUM_LIGHT_MODES) {
-    config.curLightMode = 1;
-  }
-
-  // if auto mode is turned on, 
-  // set saved mode to current mode.
-  // if (config.autoMode) {
-  //   savedMode = config.curLightMode;
-  // }
-  if (debug) {
-    Serial.print("config.curLightMode = ");
-    Serial.println(config.curLightMode);
-  }
-  // reset watchdog timer
-  wdt_reset();
-}
-
-/**
- * double click - toggle config.autoMode
- */
-void btn1_2shortclick_func() {
-  Serial.println("2 short click");
-  lastTimeValuesChanged = millis();
-  configSaved = false;
-  // lastTimeBtnDoubleClicked = millis();
-  // lastTimeBtnClicked = millis();
-  startSleepTimer();
-
-  config.curMMMode++;
-  if (config.curMMMode > 3) {
-    // config.autoMode = !config.autoMode; 
-    config.curMMMode = 1;
-  }
-  generateLEDIndication(config.curMMMode);
-  indicateLED();
-
-
-  // lowLEDs2.setLoopUnitDuration(200);
-  // if (config.autoMode) {
-  //   bool loopSeq[] = {0,1,0,1,0};
-  //   lowLEDs2.startTimer(1000, true);
-  //   lowLEDs2.setLoopSequence(loopSeq, 5);
-  //   lowLEDs2.startLoop();
-  // } else {
-  //   bool loopSeq[] = {0,1,0,0,0};
-  //   lowLEDs2.startTimer(1000, true);
-  //   lowLEDs2.setLoopSequence(loopSeq, 5);
-  //   lowLEDs2.startLoop();
-  // }
-  if (debug) {
-    Serial.print("config.curMMMode=");
-    Serial.println(config.curMMMode);
-    // Serial.print("mode=");
-    // Serial.print(config.curLightMode);
-    // Serial.println(); 
-    // Serial.print("config.autoMode=");
-    // Serial.println(config.autoMode);
-    // Serial.print("mode=");
-    // Serial.print(config.curLightMode);
-    // Serial.println(); 
-  }
-  // reset watchdog timer
-  wdt_reset();
-  
-}
-
-void btn1_1longclick_func() {
-  Serial.println("1 long click");
-  // lastTimeValuesChanged = millis();
-  // configSaved = false;
-  isOn = !isOn;
-}
-
-// ISR for interrupt button library 
-void btn1_change_func() {
-  btn1.changeInterruptFunc();
-}
-
-// ISR for waking up from deep sleep
-void wakeupISR() {
-  ADCSRA |= 1 << ADEN;
-  startSleepTimer(); 
-  // btn1_1shortclick_func();
-  btn1.begin(btn1_change_func);
-  // reset button temporarily to prevent double trigger
-  btn1.reset();
-}
-
-void autosaveConfig() {
-  if (millis() - lastTimeValuesChanged > 10000 && !configSaved) {
-    saveConfig();
-    Serial.println("saved eeprom config");
-    configSaved = true;
-  }
 }
 
 void checkBatVolts() {
@@ -359,6 +219,185 @@ void checkBatVolts() {
 
   // (lowBattery && config.curLightMode >= 1) || 
 }
+
+void offAllLEDs() {
+  lowLEDs.off();
+  lowLEDs2.off();
+  highLEDs.off();
+}
+
+void generateLEDIndication(int num) {
+  curSequencePos = 0;
+  sequenceLen = 10;
+  for (int i=0;i<sequenceLen;i++) {
+    sequence[i] = 0;
+  }
+  for (int i=0;i<num;i++) {
+    sequence[i*2] = 1;
+  }
+}
+
+void indicateLED() {
+  indicating = true; 
+  lt1 = millis();
+  offAllLEDs();
+}
+
+/**
+ * single click - switch and cycle through modes
+ */
+void btn1_1shortclick_func() {
+  Serial.println("1 short click");
+  lastTimeBtnPressed = millis();
+  lastTimeValuesChanged = millis();
+  configSaved = false;
+
+  // lastTimeBtnClicked = millis();
+  // if auto mode is turned on and the light is charging, 
+  // set current mode to saved mode.
+  // if (config.autoMode && isCharging) {
+  //   config.curLightMode = savedMode;
+  // }
+
+  // // if the battery voltage is lower than the defined low battery 
+  // // voltage plus a certain buffer value, it is considered battery low 
+  // // when the button is pressed.
+  // if (batVolts < lowBatVolts + hysteresisBatVolts) {
+  //   lowBattery = true;
+  // }
+  if (isOn) {
+    config.curLightMode++;
+  }
+  
+  // Cycle current mode to the start when it exceeds the last mode.
+  if (config.curLightMode > NUM_LIGHT_MODES) {
+    config.curLightMode = 1;
+  }
+
+  // if auto mode is turned on, 
+  // set saved mode to current mode.
+  // if (config.autoMode) {
+  //   savedMode = config.curLightMode;
+  // }
+  if (debug) {
+    Serial.print("config.curLightMode = ");
+    Serial.println(config.curLightMode);
+  }
+  // reset watchdog timer
+  wdt_reset();
+}
+
+/**
+ * double click - toggle config.autoMode
+ */
+void btn1_2shortclick_func() {
+  Serial.println("2 short click");
+  lastTimeBtnPressed = millis();
+  lastTimeValuesChanged = millis();
+  configSaved = false;
+  // lastTimeBtnDoubleClicked = millis();
+  // lastTimeBtnClicked = millis();
+
+  if (isOn) {
+    config.curMMMode++;
+  }
+  if (config.curMMMode > 3) {
+    // config.autoMode = !config.autoMode; 
+    config.curMMMode = 1;
+  }
+  generateLEDIndication(config.curMMMode);
+  indicateLED();
+
+
+  // lowLEDs2.setLoopUnitDuration(200);
+  // if (config.autoMode) {
+  //   bool loopSeq[] = {0,1,0,1,0};
+  //   lowLEDs2.startTimer(1000, true);
+  //   lowLEDs2.setLoopSequence(loopSeq, 5);
+  //   lowLEDs2.startLoop();
+  // } else {
+  //   bool loopSeq[] = {0,1,0,0,0};
+  //   lowLEDs2.startTimer(1000, true);
+  //   lowLEDs2.setLoopSequence(loopSeq, 5);
+  //   lowLEDs2.startLoop();
+  // }
+  if (debug) {
+    Serial.print("config.curMMMode=");
+    Serial.println(config.curMMMode);
+    // Serial.print("mode=");
+    // Serial.print(config.curLightMode);
+    // Serial.println(); 
+    // Serial.print("config.autoMode=");
+    // Serial.println(config.autoMode);
+    // Serial.print("mode=");
+    // Serial.print(config.curLightMode);
+    // Serial.println(); 
+  }
+  // reset watchdog timer
+  wdt_reset();
+  
+}
+
+void btn1_1longclick_func() {
+  Serial.println("1 long click");
+  lastTimeBtnPressed = millis();
+  isOn = !isOn;
+}
+
+// ISR for interrupt button library 
+void btn1_change_func() {
+  btn1.changeInterruptFunc();
+}
+
+// ISR for waking up from deep sleep
+void wakeupISR() {
+  ADCSRA |= 1 << ADEN;
+  startWakeUpTimer(); 
+  wokenUp = true;
+  btn1.begin(btn1_change_func);
+}
+
+// ISR triggered by watchdog timer every 1 seconds during deep sleep,
+// before going back to sleep.
+ISR (WDT_vect) {
+  ADCSRA |= 1 << ADEN;
+  wdt_reset();
+  checkBatVolts(); 
+}
+
+void checkWakeupLongPressLoop() {
+  if (wokenUp) {
+    Serial.print("wk ");
+    Serial.print(longPressTime);
+    Serial.print(" btn ");
+    Serial.println(btn1.getState());
+    if (!btn1.getState()) {
+      longPressTime += millis() - lastTimeLongPressChecked;
+      lastTimeLongPressChecked = millis();
+    }
+    if (longPressTime > 1000) {
+      isOn = true;
+      longPressTime = 0;
+      wokenUp = false;
+    }
+    if (millis() - lastTimeWoken > 1200) {
+      wokenUp = false;
+    }
+    // Serial.println("wakeupcheck");
+    // if button is long pressed, turn on the lights.
+    
+  }
+}
+
+void autosaveConfig() {
+  if (millis() - lastTimeValuesChanged > 10000 && !configSaved) {
+    saveConfig();
+    Serial.println("saved eeprom config");
+    configSaved = true;
+  }
+}
+
+
 
 /**
 
@@ -439,54 +478,44 @@ Else if the light is not in config.autoMode {
 //   }
 // }
 
-// ISR triggered by watchdog timer every 1 seconds during deep sleep,
-// before going back to sleep.
-ISR (WDT_vect) {
-  ADCSRA |= 1 << ADEN;
-  wdt_reset();
-  checkBatVolts(); 
-  // updateChargeLED();
-  // checkAutoMode();
-  checkBatVolts();
-}
-
 /**
  * mode 0 - Off Mode
  */
 void offMode() {
   offAllLEDs();
-  // if (millis() - powerOnTime > 3000) {
-  //   isSleeping = true;
-  //   // set interrupt to perform the watchdog ISR every four seconds then go back to sleep
-  //   // clear MCU Status Register
-  //   MCUSR = 0;
-  //   // set watchdog timer change enable and watchdog enable
-  //   WDTCSR = 1 << WDCE | 1 << WDE;
-  //   // set WDP3 to WDP0 to trigger watchdog interrupt every 4 seconds and 
-  //   // set WDIE enable watchdog interrupt
-  //   // WDTCSR = bit(WDIE) | 1 << WDP3 & ~bit (WDP2) & ~bit (WDP1) & ~bit (WDP0);
-  //   // WDTCSR = 1 << WDIE | 1 << WDP3 | 0 << WDP2 | 0 << WDP1 | 0 << WDP0;
-  //   WDTCSR = 1 << WDIE | 0 << WDP3 | 1 << WDP2 | 1 << WDP1 | 0 << WDP0;
+  // Serial.println("off");
+  if (millis() - lastTimeBtnPressed > 3000) {
+    // isSleeping = true;
+    // set interrupt to perform the watchdog ISR every four seconds then go back to sleep
+    // clear MCU Status Register
+    MCUSR = 0;
+    // set watchdog timer change enable and watchdog enable
+    WDTCSR = 1 << WDCE | 1 << WDE;
+    // set WDP3 to WDP0 to trigger watchdog interrupt every 4 seconds and 
+    // set WDIE enable watchdog interrupt
+    // WDTCSR = bit(WDIE) | 1 << WDP3 & ~bit (WDP2) & ~bit (WDP1) & ~bit (WDP0);
+    // WDTCSR = 1 << WDIE | 1 << WDP3 | 0 << WDP2 | 0 << WDP1 | 0 << WDP0;
+    WDTCSR = 1 << WDIE | 0 << WDP3 | 1 << WDP2 | 1 << WDP1 | 0 << WDP0;
 
-  //   // sleep CPU until woken up by the button
-  //   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-  //   sleep_enable();
-  //   detachInterrupt(digitalPinToInterrupt(2));
-  //   attachInterrupt(digitalPinToInterrupt(2), wakeupISR, LOW);  
-  //   // sleep_mode(); 
-  //   // sei();
-  //   ADCSRA = 0;
-  //   // turn off brown-out enable in software
-  //   MCUCR = bit (BODS) | bit (BODSE);  // turn on brown-out enable select
-  //   MCUCR = bit (BODS);        // this must be done within 4 clock cycles of above
-  //   interrupts ();             // guarantees next instruction executed
+    // sleep CPU until woken up by the button
+    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+    sleep_enable();
+    detachInterrupt(digitalPinToInterrupt(2));
+    attachInterrupt(digitalPinToInterrupt(2), wakeupISR, FALLING);  
+    // sleep_mode(); 
+    // sei();
+    ADCSRA = 0;
+    // turn off brown-out enable in software
+    MCUCR = bit (BODS) | bit (BODSE);  // turn on brown-out enable select
+    MCUCR = bit (BODS);        // this must be done within 4 clock cycles of above
+    interrupts();             // guarantees next instruction executed
 
-  //   sleep_cpu();
-  //   // sleep_disable();
-  //   // sei();
-  //   // detachInterrupt(digitalPinToInterrupt(2));
-  //   // btn1.begin(btn1_change_func);
-  // }
+    sleep_cpu();
+    // sleep_disable();
+    // sei();
+    // detachInterrupt(digitalPinToInterrupt(2));
+    // btn1.begin(btn1_change_func);
+  }
 }
 
 /**
@@ -671,6 +700,7 @@ void loop() {
   highLEDs.loop();
   
   indicateLEDLoop();
+  checkWakeupLongPressLoop();
   if (isOn && !indicating) {
     switch (config.curLightMode) {
       case EXTENDED_LOW_MODE_2:
