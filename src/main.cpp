@@ -501,7 +501,7 @@ void offMode() {
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     sleep_enable();
     detachInterrupt(digitalPinToInterrupt(2));
-    attachInterrupt(digitalPinToInterrupt(2), wakeupISR, FALLING);  
+    attachInterrupt(digitalPinToInterrupt(2), wakeupISR, LOW);  
     // sleep_mode(); 
     // sei();
     ADCSRA = 0;
