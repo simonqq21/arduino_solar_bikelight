@@ -407,6 +407,8 @@ void checkWakeupLongPressLoop()
     if (longPressTime > 800)
     {
       config.isOn = true;
+      lastTimeValuesChanged = millis();
+      configSaved = false;
       longPressTime = 0;
       wokenUp = false;
     }
@@ -634,6 +636,10 @@ void highMode()
   lowLEDs.on();
   lowLEDs2.on();
   highLEDs.on();
+}
+
+void highFlashMode()
+{
 }
 
 /**
